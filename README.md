@@ -54,8 +54,8 @@ Make sure you have the following installed:
 ### Clone the Repository
 
 ```bash
-git clone <your-repository-url>
-cd <your-project-directory>
+git clone https://github.com/Sp00fyBoi/react-native-recurrly.git
+cd react-native-recurrly
 ```
 
 ### Install Dependencies
