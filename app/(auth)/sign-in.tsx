@@ -187,6 +187,7 @@ const SignIn = () => {
           className="auth-scroll"
           contentContainerClassName="auth-content"
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
         >
           <View className="auth-brand-block">
