@@ -46,6 +46,7 @@ const SignUp = () => {
   const [code, setCode] = useState("");
   const [codeError, setCodeError] = useState<string | undefined>();
   const [cooldown, setCooldown] = useState(0);
+  const [statusNotice, setStatusNotice] = useState<string | undefined>();
 
   const isSubmitting = fetchStatus === "fetching";
   const globalError = errors.global?.[0];
@@ -104,6 +105,7 @@ const SignUp = () => {
       return;
     }
     setCodeError(undefined);
+    setStatusNotice(undefined);
 
     const { error } = await signUp.verifications.verifyEmailCode({
       code: code.trim(),
@@ -113,17 +115,39 @@ const SignUp = () => {
     if (signUp.status === "complete") {
       await signUp.finalize({
         navigate: ({ session }) => {
-          if (session?.currentTask) return;
+          if (session?.currentTask) {
+            setStatusNotice(
+              "Your account needs additional setup that isn't supported yet. Please contact support."
+            );
+            return;
+          }
           router.replace("/(tabs)");
         },
       });
+      return;
     }
+
+    setStatusNotice(
+      "We couldn't complete your sign-up automatically. Please contact support."
+    );
   };
 
   const handleResend = async () => {
     if (!signUp || cooldown > 0 || isSubmitting) return;
     const { error } = await signUp.verifications.sendEmailCode();
     if (!error) setCooldown(RESEND_COOLDOWN_SECONDS);
+  };
+
+  const handleUseDifferentEmail = async () => {
+    try {
+      await signUp?.reset();
+    } finally {
+      setStage("form");
+      setCode("");
+      setCodeError(undefined);
+      setStatusNotice(undefined);
+      setCooldown(0);
+    }
   };
 
   return (
@@ -275,9 +299,11 @@ const SignUp = () => {
             ) : (
               <>
                 <View className="auth-form">
-                  {globalError && (
+                  {(globalError || statusNotice) && (
                     <Text className="auth-error text-center">
-                      {globalError.longMessage ?? globalError.message}
+                      {globalError
+                        ? (globalError.longMessage ?? globalError.message)
+                        : statusNotice}
                     </Text>
                   )}
 
@@ -326,7 +352,7 @@ const SignUp = () => {
                 </View>
 
                 <View className="auth-link-row">
-                  <Pressable onPress={() => setStage("form")}>
+                  <Pressable onPress={handleUseDifferentEmail}>
                     <Text className="auth-link">Use a different email</Text>
                   </Pressable>
                 </View>

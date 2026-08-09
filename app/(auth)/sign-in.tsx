@@ -35,6 +35,7 @@ const SignIn = () => {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [localErrors, setLocalErrors] = useState<FieldErrors>({});
+  const [statusNotice, setStatusNotice] = useState<string | undefined>();
 
   const isSubmitting = fetchStatus === "fetching";
   const globalError = errors.global?.[0];
@@ -58,6 +59,7 @@ const SignIn = () => {
   const handleSignIn = async () => {
     if (!signIn || isSubmitting) return;
     if (!validate()) return;
+    setStatusNotice(undefined);
 
     const { error } = await signIn.password({
       identifier: identifier.trim(),
@@ -68,11 +70,21 @@ const SignIn = () => {
     if (signIn.status === "complete") {
       await signIn.finalize({
         navigate: ({ session }) => {
-          if (session?.currentTask) return;
+          if (session?.currentTask) {
+            setStatusNotice(
+              "Your account needs additional setup that isn't supported yet. Please contact support."
+            );
+            return;
+          }
           router.replace("/(tabs)");
         },
       });
+      return;
     }
+
+    setStatusNotice(
+      "This account requires additional verification that isn't supported yet. Please contact support."
+    );
   };
 
   return (
@@ -107,9 +119,11 @@ const SignIn = () => {
 
           <View className="auth-card">
             <View className="auth-form">
-              {globalError && (
+              {(globalError || statusNotice) && (
                 <Text className="auth-error text-center">
-                  {globalError.longMessage ?? globalError.message}
+                  {globalError
+                    ? (globalError.longMessage ?? globalError.message)
+                    : statusNotice}
                 </Text>
               )}
 
