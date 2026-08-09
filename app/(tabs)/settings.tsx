@@ -5,6 +5,7 @@ import { useClerk, useUser } from "@clerk/expo";
 import { clsx } from "clsx";
 import { styled } from "nativewind";
 import { useState } from "react";
+import { usePostHog } from "posthog-react-native";
 import { ActivityIndicator, Image, Pressable, Text, View } from "react-native";
 import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
 
@@ -13,6 +14,7 @@ const SafeAreaView = styled(RNSafeAreaView);
 const Settings = () => {
   const { signOut } = useClerk();
   const { user, isLoaded } = useUser();
+  const posthog = usePostHog();
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   const handleSignOut = async () => {
@@ -20,6 +22,8 @@ const Settings = () => {
     setIsSigningOut(true);
     try {
       await signOut();
+      posthog.capture("sign_out_completed");
+      posthog.reset();
     } finally {
       setIsSigningOut(false);
     }
