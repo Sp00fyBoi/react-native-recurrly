@@ -6,9 +6,11 @@ import { styled } from "nativewind";
 import { usePostHog } from "posthog-react-native";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   FlatList,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   Text,
   TextInput,
   View,
@@ -22,8 +24,24 @@ const Subscriptions = () => {
   const [expandedSubscriptionId, setExpandedSubscriptionId] = useState<
     string | null
   >(null);
-  const { subscriptions } = useSubscriptions();
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const { subscriptions, status, error, refresh, updateSubscription } =
+    useSubscriptions();
   const posthog = usePostHog();
+
+  const handleCancelSubscription = async (subscription: Subscription) => {
+    setCancellingId(subscription.id);
+    try {
+      await updateSubscription(subscription.id, { status: "cancelled" });
+      posthog.capture("subscription_cancelled", {
+        subscription_id: subscription.id,
+        category: subscription.category ?? "Other",
+        screen: "subscriptions",
+      });
+    } finally {
+      setCancellingId(null);
+    }
+  };
 
   const filteredSubscriptions = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -57,8 +75,33 @@ const Subscriptions = () => {
     return () => clearTimeout(timeout);
   }, [query, filteredSubscriptions.length, posthog]);
 
+  if (status === "loading") {
+    return (
+      <SafeAreaView className="flex-1 items-center justify-center bg-background p-5">
+        <ActivityIndicator size="large" color={colors.accent} />
+      </SafeAreaView>
+    );
+  }
+
+  if (status === "error") {
+    return (
+      <SafeAreaView className="flex-1 items-center justify-center bg-background p-5">
+        <Text className="auth-error text-center">{error}</Text>
+        <Pressable
+          className="auth-button mt-4 self-stretch"
+          onPress={refresh}
+          accessibilityRole="button"
+        >
+          <Text className="auth-button-text">Try again</Text>
+        </Pressable>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView className="flex-1 bg-background p-5">
+      {error && <Text className="auth-error text-center">{error}</Text>}
+
       <KeyboardAvoidingView
         className="flex-1"
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -71,6 +114,8 @@ const Subscriptions = () => {
             <SubscriptionCard
               {...item}
               expanded={expandedSubscriptionId === item.id}
+              isCancelling={cancellingId === item.id}
+              onCancelPress={() => handleCancelSubscription(item)}
               onPress={() => {
                 const isExpanding = expandedSubscriptionId !== item.id;
                 setExpandedSubscriptionId(isExpanding ? item.id : null);
@@ -83,7 +128,7 @@ const Subscriptions = () => {
               }}
             />
           )}
-          extraData={expandedSubscriptionId}
+          extraData={`${expandedSubscriptionId}:${cancellingId}`}
           ItemSeparatorComponent={() => <View className="h-4" />}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"

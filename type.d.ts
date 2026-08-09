@@ -1,4 +1,5 @@
 import type { ImageSourcePropType } from "react-native";
+import type { IconKey } from "./constants/icons";
 
 declare global {
     interface AppTab {
@@ -12,24 +13,52 @@ declare global {
         icon: ImageSourcePropType;
     }
 
+    type SubscriptionStatus = "active" | "paused" | "cancelled";
+
     interface Subscription {
         id: string;
-        icon: ImageSourcePropType;
+        userId: string;
         name: string;
+        /** Persisted. `icon` is resolved from this when a row is read. */
+        iconKey: IconKey;
+        /** Hydrated bundled asset — derived from `iconKey`, never stored. */
+        icon: ImageSourcePropType;
         plan?: string;
         category?: string;
         paymentMethod?: string;
-        status?: string;
+        status: SubscriptionStatus;
         startDate?: string;
         price: number;
-        currency?: string;
+        currency: string;
         billing: string;
-        frequency?: string;
+        renewalDate?: string;
+        color?: string;
+        createdAt: string;
+        updatedAt: string;
+    }
+
+    /** What a caller supplies to create a row; the store fills in ids/timestamps. */
+    interface CreateSubscriptionInput {
+        name: string;
+        iconKey: IconKey;
+        plan?: string;
+        category?: string;
+        paymentMethod?: string;
+        status?: SubscriptionStatus;
+        startDate?: string;
+        price: number;
+        currency: string;
+        billing: string;
         renewalDate?: string;
         color?: string;
     }
 
-    interface SubscriptionCardProps extends Omit<Subscription, "id"> {
+    type UpdateSubscriptionPatch = Partial<
+        Omit<Subscription, "id" | "userId" | "icon" | "createdAt" | "updatedAt">
+    >;
+
+    interface SubscriptionCardProps
+        extends Omit<Subscription, "id" | "userId" | "createdAt" | "updatedAt"> {
         expanded: boolean;
         onPress: () => void;
         onCancelPress?: () => void;
@@ -55,7 +84,7 @@ declare global {
     interface CreateSubscriptionModalProps {
         visible: boolean;
         onClose: () => void;
-        onCreate: (subscription: Subscription) => void;
+        onCreate: (subscription: CreateSubscriptionInput) => void;
     }
 }
 

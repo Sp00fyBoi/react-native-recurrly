@@ -1,7 +1,7 @@
 import { tabs } from "@/constants/data";
 import { colors, components } from "@/constants/theme";
 import { SubscriptionsProvider } from "@/lib/subscriptions-store";
-import { useAuth } from "@clerk/expo";
+import { useUser } from "@clerk/expo";
 import { clsx } from "clsx";
 import { Redirect, Tabs } from "expo-router";
 import { Image, View } from "react-native";
@@ -21,16 +21,18 @@ const TabIcon = ({ focused, icon }: TabIconProps) => {
 
 const TabLayout = () => {
   const insets = useSafeAreaInsets();
-  const { isLoaded, isSignedIn } = useAuth();
+  // useUser (rather than useAuth) because the store needs the user id to scope
+  // every query — the same id the Supabase `user_id` column will hold.
+  const { isLoaded, isSignedIn, user } = useUser();
 
   if (!isLoaded) return null;
 
-  if (!isSignedIn) {
+  if (!isSignedIn || !user) {
     return <Redirect href="/(auth)/sign-in" />;
   }
 
   return (
-    <SubscriptionsProvider>
+    <SubscriptionsProvider userId={user.id}>
       <Tabs
         screenOptions={{
           headerShown: false,

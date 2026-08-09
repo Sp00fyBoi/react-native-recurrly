@@ -1,3 +1,4 @@
+import { colors } from "@/constants/theme";
 import {
   formatCurrency,
   formatStatusLabel,
@@ -5,7 +6,7 @@ import {
 } from "@/lib/utils";
 import {clsx} from "clsx";
 import React from "react";
-import { Image, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Image, Pressable, Text, View } from "react-native";
 
 const SubscriptionCard = ({
   name,
@@ -22,7 +23,11 @@ const SubscriptionCard = ({
   paymentMethod,
   startDate,
   status,
+  onCancelPress,
+  isCancelling,
 }: SubscriptionCardProps) => {
+  const canCancel = Boolean(onCancelPress) && status !== "cancelled";
+
   return (
     <Pressable
       onPress={onPress}
@@ -124,6 +129,22 @@ const SubscriptionCard = ({
               </View>
             </View>
           </View>
+
+          {canCancel && (
+            <Pressable
+              className={clsx("sub-cancel", isCancelling && "sub-cancel-disabled")}
+              onPress={onCancelPress}
+              disabled={isCancelling}
+              accessibilityRole="button"
+              accessibilityLabel={`Cancel ${name}`}
+            >
+              {isCancelling ? (
+                <ActivityIndicator color={colors.background} />
+              ) : (
+                <Text className="sub-cancel-text">Cancel subscription</Text>
+              )}
+            </Pressable>
+          )}
         </View>
       )}
     </Pressable>

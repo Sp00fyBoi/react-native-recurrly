@@ -1,4 +1,4 @@
-import { icons } from "@/constants/icons";
+import type { IconKey } from "@/constants/icons";
 import { colors } from "@/constants/theme";
 import { clsx } from "clsx";
 import dayjs from "dayjs";
@@ -58,6 +58,33 @@ const validatePrice = (value: string): string | undefined => {
     return "Enter a price greater than 0";
   }
   return undefined;
+};
+
+/**
+ * Only brand logos are matchable. Matching against every key in `icons` would
+ * let UI glyphs win on substrings — "Backblaze" would resolve to the back
+ * arrow, "Homebrew" to the home icon.
+ */
+const BRAND_ICON_KEYS: IconKey[] = [
+  "notion",
+  "dropbox",
+  "openai",
+  "adobe",
+  "medium",
+  "figma",
+  "spotify",
+  "github",
+  "claude",
+  "canva",
+];
+
+/**
+ * Picks a bundled brand icon when the typed name matches one, so common
+ * services get their real logo instead of the generic wallet.
+ */
+const matchIconKey = (name: string): IconKey => {
+  const normalized = name.toLowerCase().replace(/\s+/g, "");
+  return BRAND_ICON_KEYS.find((key) => normalized.includes(key)) ?? "wallet";
 };
 
 // Android renders <Modal> in its own native Dialog window, which the activity's
@@ -131,16 +158,14 @@ const CreateSubscriptionModal = ({
         : startDate.add(1, "year");
 
     onCreate({
-      id: `${trimmedName.toLowerCase().replace(/\s+/g, "-")}-${startDate.valueOf()}`,
-      icon: icons.wallet,
       name: trimmedName,
+      iconKey: matchIconKey(trimmedName),
       category,
       status: "active",
       startDate: startDate.toISOString(),
       price: parsedPrice,
       currency: "USD",
       billing: frequency,
-      frequency,
       renewalDate: renewalDate.toISOString(),
       color: CATEGORY_COLORS[category],
     });
