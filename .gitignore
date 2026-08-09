@@ -31,7 +31,11 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
 .env*.local
+
+# Playwright MCP debug artifacts (may contain form data typed during manual testing)
+.playwright-mcp/
 
 # typescript
 *.tsbuildinfo

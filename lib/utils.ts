@@ -23,3 +23,12 @@ export const formatStatusLabel = (value?: string): string => {
   if (!value) return "Unknown";
   return value.charAt(0).toUpperCase() + value.slice(1);
 };
+
+export const formatAccountId = (id: string, visibleChars = 20): string =>
+  id.length > visibleChars ? `${id.slice(0, visibleChars)}…` : id;
+
+export const formatJoinedDate = (value?: Date | string | null): string => {
+  if (!value) return "Not available";
+  const parsedDate = dayjs(value);
+  return parsedDate.isValid() ? parsedDate.format("DD.MM.YYYY") : "Not available";
+};
