@@ -17,6 +17,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
+import { usePostHog } from "posthog-react-native";
 
 const SafeAreaView = styled(RNSafeAreaView);
 
@@ -35,6 +36,7 @@ type FormErrors = {
 const SignUp = () => {
   const { signUp, errors, fetchStatus } = useSignUp();
   const router = useRouter();
+  const posthog = usePostHog();
 
   const [stage, setStage] = useState<Stage>("form");
   const [emailAddress, setEmailAddress] = useState("");
@@ -115,12 +117,23 @@ const SignUp = () => {
     if (signUp.status === "complete") {
       await signUp.finalize({
         navigate: ({ session }) => {
-          if (session?.currentTask) {
+          if (session?.currentTask || !session?.user) {
             setStatusNotice(
               "Your account needs additional setup that isn't supported yet. Please contact support."
             );
             return;
           }
+          posthog.identify(session.user.id, {
+            ...(session.user.primaryEmailAddress?.emailAddress
+              ? { email: session.user.primaryEmailAddress.emailAddress }
+              : {}),
+            ...(session.user.fullName ?? session.user.firstName
+              ? { name: session.user.fullName ?? session.user.firstName }
+              : {}),
+          });
+          posthog.capture("sign_up_completed", {
+            sign_up_method: "email_password",
+          });
           router.replace("/(tabs)");
         },
       });
@@ -135,7 +148,10 @@ const SignUp = () => {
   const handleResend = async () => {
     if (!signUp || cooldown > 0 || isSubmitting) return;
     const { error } = await signUp.verifications.sendEmailCode();
-    if (!error) setCooldown(RESEND_COOLDOWN_SECONDS);
+    if (!error) {
+      posthog.capture("sign_up_verification_code_resent");
+      setCooldown(RESEND_COOLDOWN_SECONDS);
+    }
   };
 
   const handleUseDifferentEmail = async () => {

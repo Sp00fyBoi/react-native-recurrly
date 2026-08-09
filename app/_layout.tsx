@@ -2,8 +2,22 @@ import "@/global.css";
 import { ClerkProvider } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
 import { useFonts } from "expo-font";
-import { SplashScreen, Stack } from "expo-router";
+import { SplashScreen, Stack, usePathname } from "expo-router";
+import { PostHogProvider, usePostHog } from "posthog-react-native";
 import { useEffect } from "react";
+
+import { posthog } from "@/lib/posthog";
+
+function ScreenTracker() {
+  const posthog = usePostHog();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    posthog.screen(pathname);
+  }, [posthog, pathname]);
+
+  return null;
+}
 
 SplashScreen.preventAutoHideAsync()
 
@@ -33,7 +47,13 @@ export default function RootLayout() {
 
   return (
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-      <Stack screenOptions={{ headerShown: false }} />
+      <PostHogProvider
+        client={posthog}
+        autocapture={{ captureScreens: false }}
+      >
+        <ScreenTracker />
+        <Stack screenOptions={{ headerShown: false }} />
+      </PostHogProvider>
     </ClerkProvider>
   );
 }

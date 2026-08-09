@@ -16,6 +16,7 @@ import { styled } from "nativewind";
 import { useState } from "react";
 import { Image, Text, View, FlatList } from "react-native";
 import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
+import { usePostHog } from "posthog-react-native";
 
 const SafeAreaView = styled(RNSafeAreaView);
 
@@ -23,6 +24,7 @@ export default function App() {
   const [expandedSubscriptionId, setExpandedSubscriptionId] =
     useState<string | null>(null);
   const { user } = useUser();
+  const posthog = usePostHog();
 
   const displayName = user?.firstName ?? user?.fullName ?? "there";
   const avatarSource = user?.imageUrl ? { uri: user.imageUrl } : images.avatar;
@@ -37,11 +39,15 @@ export default function App() {
           <SubscriptionCard
             {...item}
             expanded={expandedSubscriptionId === item.id}
-            onPress={() =>
-              setExpandedSubscriptionId((currentId) =>
-                currentId === item.id ? null : item.id
-              )
-            }
+            onPress={() => {
+              const isExpanding = expandedSubscriptionId !== item.id;
+              setExpandedSubscriptionId(isExpanding ? item.id : null);
+              if (isExpanding) {
+                posthog.capture("subscription_card_expanded", {
+                  subscription_id: item.id,
+                });
+              }
+            }}
           />
         )}
         extraData={expandedSubscriptionId}
