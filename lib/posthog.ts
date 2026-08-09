@@ -15,16 +15,14 @@ if (!host && __DEV__) {
   );
 }
 
-export const posthog =
-  projectToken && host
-    ? new PostHog(projectToken, {
-        host,
-        captureAppLifecycleEvents: true,
-        errorTracking: {
-          autocapture: {
-            uncaughtExceptions: true,
-            unhandledRejections: true,
-          },
-        },
-      })
-    : undefined;
+export const posthog = new PostHog(projectToken || "phc_unconfigured", {
+  host: host || "https://us.i.posthog.com",
+  disabled: !projectToken || !host,
+  captureAppLifecycleEvents: true,
+  errorTracking: {
+    autocapture: {
+      uncaughtExceptions: true,
+      unhandledRejections: true,
+    },
+  },
+});

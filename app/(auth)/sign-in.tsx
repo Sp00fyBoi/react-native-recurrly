@@ -210,7 +210,7 @@ const SignIn = () => {
               </>
             ) : (
               <>
-                <Text className="auth-title">Verify it's you</Text>
+                <Text className="auth-title">Verify it&apos;s you</Text>
                 <Text className="auth-subtitle">
                   Enter the 6-digit code we sent to {identifier}
                 </Text>
