@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   status TEXT NOT NULL DEFAULT 'active',
   start_date TEXT,
   price REAL NOT NULL,
-  currency TEXT NOT NULL DEFAULT 'USD',
+  currency TEXT NOT NULL DEFAULT 'INR',
   billing TEXT NOT NULL,
   renewal_date TEXT,
   color TEXT,

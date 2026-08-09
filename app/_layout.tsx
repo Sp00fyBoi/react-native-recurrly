@@ -1,6 +1,7 @@
 import "@/global.css";
-import { ClerkProvider } from "@clerk/expo";
+import { ClerkProvider, useUser } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
+import { SubscriptionsProvider } from "@/lib/subscriptions-store";
 import { useFonts } from "expo-font";
 import {
   SplashScreen,
@@ -8,8 +9,9 @@ import {
   usePathname,
   type ErrorBoundaryProps,
 } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import { PostHogProvider, usePostHog } from "posthog-react-native";
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 
 import { posthog } from "@/lib/posthog";
@@ -35,11 +37,30 @@ const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 function ConfigurationError({ variable }: { variable: string }) {
   return (
     <View className="auth-safe-area justify-center p-5">
+      <StatusBar style="dark" />
       <Text className="auth-title">Configuration required</Text>
       <Text className="auth-subtitle">
         {variable} is missing. Add it to your .env file and restart the app.
       </Text>
     </View>
+  );
+}
+
+/**
+ * Provides the subscriptions store to every signed-in route — including
+ * `/subscriptions/[id]`, which lives outside the tabs group and would
+ * otherwise hit `useSubscriptions()`'s "must be used within a provider" throw.
+ * Signed-out routes render without it since they have no user to scope to.
+ */
+function SignedInProviders({ children }: { children: ReactNode }) {
+  const { isLoaded, isSignedIn, user } = useUser();
+  const userId = isLoaded && isSignedIn && user ? user.id : null;
+
+  // Always rendered, even signed out, so the element type at this position
+  // never changes — swapping it would remount the whole navigation Stack the
+  // moment auth state flips.
+  return (
+    <SubscriptionsProvider userId={userId}>{children}</SubscriptionsProvider>
   );
 }
 
@@ -50,6 +71,7 @@ function ConfigurationError({ variable }: { variable: string }) {
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   return (
     <View className="auth-safe-area justify-center p-5">
+      <StatusBar style="dark" />
       <Text className="auth-title">Something went wrong</Text>
       <Text className="auth-subtitle">
         The app hit an unexpected error. You can try again.
@@ -101,8 +123,14 @@ export default function RootLayout() {
   return (
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
       <PostHogProvider client={posthog} autocapture={{ captureScreens: false }}>
+        {/* Every surface in the app is cream, so system icons must be dark.
+            Under Android edge-to-edge only `style` is honoured — a
+            backgroundColor here would be ignored with a warning. */}
+        <StatusBar style="dark" />
         <ScreenTracker />
-        <Stack screenOptions={{ headerShown: false }} />
+        <SignedInProviders>
+          <Stack screenOptions={{ headerShown: false }} />
+        </SignedInProviders>
       </PostHogProvider>
     </ClerkProvider>
   );

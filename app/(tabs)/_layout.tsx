@@ -1,6 +1,5 @@
 import { tabs } from "@/constants/data";
 import { colors, components } from "@/constants/theme";
-import { SubscriptionsProvider } from "@/lib/subscriptions-store";
 import { useUser } from "@clerk/expo";
 import { clsx } from "clsx";
 import { Redirect, Tabs } from "expo-router";
@@ -21,8 +20,6 @@ const TabIcon = ({ focused, icon }: TabIconProps) => {
 
 const TabLayout = () => {
   const insets = useSafeAreaInsets();
-  // useUser (rather than useAuth) because the store needs the user id to scope
-  // every query — the same id the Supabase `user_id` column will hold.
   const { isLoaded, isSignedIn, user } = useUser();
 
   if (!isLoaded) return null;
@@ -31,8 +28,10 @@ const TabLayout = () => {
     return <Redirect href="/(auth)/sign-in" />;
   }
 
+  // The subscriptions store is provided from app/_layout.tsx so routes outside
+  // this group (notably /subscriptions/[id]) can read it too.
   return (
-    <SubscriptionsProvider userId={user.id}>
+    <>
       <Tabs
         screenOptions={{
           headerShown: false,
@@ -70,7 +69,7 @@ const TabLayout = () => {
           />
         ))}
       </Tabs>
-    </SubscriptionsProvider>
+    </>
   );
 };
 

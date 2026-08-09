@@ -15,6 +15,7 @@ import { useSubscriptions } from "@/lib/subscriptions-store";
 import { formatCurrency } from "@/lib/utils";
 import { useUser } from "@clerk/expo";
 import dayjs from "dayjs";
+import { useRouter } from "expo-router";
 import { styled } from "nativewind";
 import { useMemo, useState } from "react";
 import {
@@ -34,6 +35,7 @@ export default function App() {
   const [expandedSubscriptionId, setExpandedSubscriptionId] =
     useState<string | null>(null);
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
+  const [editing, setEditing] = useState<Subscription | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const {
     subscriptions,
@@ -45,6 +47,7 @@ export default function App() {
   } = useSubscriptions();
   const { user } = useUser();
   const posthog = usePostHog();
+  const router = useRouter();
 
   const monthlyTotal = useMemo(
     () => calculateMonthlyTotal(subscriptions),
@@ -67,6 +70,14 @@ export default function App() {
       subscription_id: created.id,
       category: created.category ?? "Other",
       billing: created.billing,
+    });
+  };
+
+  const handleSaveEdit = async (id: string, patch: UpdateSubscriptionPatch) => {
+    await updateSubscription(id, patch);
+    posthog.capture("subscription_edited", {
+      subscription_id: id,
+      fields: Object.keys(patch).join(","),
     });
   };
 
@@ -96,11 +107,17 @@ export default function App() {
           <Text className="home-user-name">Hi, {displayName}</Text>
         </View>
         <Pressable
+          className="screen-header-button"
           onPress={() => setIsCreateModalVisible(true)}
           accessibilityRole="button"
           accessibilityLabel="Add subscription"
         >
-          <Image source={icons.add} className="home-add-icon" />
+          <Image
+            source={icons.add}
+            className="home-add-icon"
+            resizeMode="contain"
+            style={{ tintColor: colors.primary }}
+          />
         </Pressable>
       </View>
 
@@ -119,7 +136,10 @@ export default function App() {
 
       {/* Upcoming Subscriptions Section */}
       <View className="mb-4">
-        <ListHeading title="Upcoming" />
+        <ListHeading
+          title="Upcoming"
+          onActionPress={() => router.push("/(tabs)/subscriptions")}
+        />
         <FlatList
           data={upcomingSubscriptions}
           keyExtractor={(item) => item.id}
@@ -139,7 +159,7 @@ export default function App() {
 
   if (status === "loading") {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-background p-5">
+      <SafeAreaView className="screen-centered">
         <ActivityIndicator size="large" color={colors.accent} />
       </SafeAreaView>
     );
@@ -147,7 +167,7 @@ export default function App() {
 
   if (status === "error") {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-background p-5">
+      <SafeAreaView className="screen-centered">
         <Text className="auth-error text-center">{error}</Text>
         <Pressable
           className="auth-button mt-4 self-stretch"
@@ -161,7 +181,7 @@ export default function App() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-background p-5">
+    <SafeAreaView className="screen">
       {error && <Text className="auth-error text-center">{error}</Text>}
 
       <FlatList
@@ -174,6 +194,17 @@ export default function App() {
             expanded={expandedSubscriptionId === item.id}
             isCancelling={cancellingId === item.id}
             onCancelPress={() => handleCancelSubscription(item)}
+            onEditPress={() => setEditing(item)}
+            onDetailsPress={() => {
+              posthog.capture("subscription_detail_opened", {
+                subscription_id: item.id,
+                screen: "home",
+              });
+              router.push({
+                pathname: "/subscriptions/[id]",
+                params: { id: item.id },
+              });
+            }}
             onPress={() => {
               const isExpanding = expandedSubscriptionId !== item.id;
               setExpandedSubscriptionId(isExpanding ? item.id : null);
@@ -193,13 +224,20 @@ export default function App() {
         ListEmptyComponent={
           <Text className="home-empty-state">No subscriptions yet.</Text>
         }
-        contentContainerClassName="pb-30"
+        contentContainerClassName="screen-scroll-content"
       />
 
+      {/* One sheet serves both jobs — `subscription` is what flips it into
+          edit mode, so the two can never be open at once. */}
       <CreateSubscriptionModal
-        visible={isCreateModalVisible}
-        onClose={() => setIsCreateModalVisible(false)}
+        visible={isCreateModalVisible || editing !== null}
+        subscription={editing}
+        onClose={() => {
+          setIsCreateModalVisible(false);
+          setEditing(null);
+        }}
         onCreate={handleCreateSubscription}
+        onUpdate={handleSaveEdit}
       />
     </SafeAreaView>
   );

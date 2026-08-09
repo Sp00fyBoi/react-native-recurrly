@@ -46,6 +46,22 @@
 }
 
 @layer components {
+  /* The single container rule every screen uses, so horizontal gutters and
+     top spacing can never drift apart between Home, Subscriptions, Insights,
+     Settings and the detail route. */
+  .screen {
+    @apply flex-1 bg-background px-5 pt-5;
+  }
+
+  .screen-centered {
+    @apply flex-1 items-center justify-center bg-background px-5;
+  }
+
+  /* Clears the floating tab bar (72px tall, 20px inset from the bottom). */
+  .screen-scroll-content {
+    @apply pb-30;
+  }
+
   .tabs-icon {
     @apply size-12 items-center justify-center;
   }
@@ -79,7 +95,7 @@
   }
 
   .home-add-icon {
-    @apply size-12;
+    @apply size-5;
   }
 
   .home-balance-card {
@@ -208,6 +224,16 @@
 
   .sub-value {
     @apply flex-1 font-sans-bold text-primary;
+  }
+
+  /* Outlined pill sitting at the end of an expanded-card detail row
+     ("Manage" / "Change" in the reference) — both open the edit sheet. */
+  .sub-chip {
+    @apply shrink-0 rounded-full border border-primary/40 px-4 py-1.5;
+  }
+
+  .sub-chip-text {
+    @apply text-sm font-sans-semibold text-primary;
   }
 
   .sub-cancel {
@@ -358,8 +384,10 @@
     @apply flex-1 justify-end bg-black/70;
   }
 
+  /* `bg-card`, not white: the form controls below are `bg-background` (cream),
+     which was all but invisible against a pure-white sheet. */
   .modal-container {
-    @apply max-h-[85%] rounded-t-3xl border border-border bg-white shadow-2xl;
+    @apply max-h-[85%] rounded-t-3xl border border-border bg-card shadow-2xl;
   }
 
   .modal-header {
@@ -470,11 +498,308 @@
     @apply bg-accent/45;
   }
 
+  /* Navy on accent, matching `.auth-button-text`. Cream-on-accent was both
+     inconsistent with every other primary action and well under 3:1. */
   .settings-signout-text {
-    @apply text-base font-sans-bold text-background;
+    @apply text-base font-sans-bold text-primary;
   }
 
   .settings-skeleton-block {
     @apply rounded-xl bg-muted;
+  }
+
+  /* Onboarding */
+  .onboarding-screen {
+    @apply flex-1 bg-accent;
+  }
+
+  .onboarding-pattern-wrap {
+    @apply flex-1 overflow-hidden;
+  }
+
+  .onboarding-pattern {
+    @apply size-full;
+  }
+
+  .onboarding-copy {
+    @apply px-6 pb-4 pt-8;
+  }
+
+  .onboarding-title {
+    @apply text-4xl font-sans-extrabold text-background;
+  }
+
+  .onboarding-subtitle {
+    @apply mt-2 text-base font-sans-medium text-background/80;
+  }
+
+  .onboarding-button {
+    @apply mt-7 items-center rounded-full bg-background py-5;
+  }
+
+  .onboarding-button-text {
+    @apply text-lg font-sans-bold text-primary;
+  }
+
+  /* Screen header with circular controls */
+  .screen-header {
+    @apply mb-6 flex-row items-center justify-between;
+  }
+
+  .screen-header-button {
+    @apply size-12 items-center justify-center rounded-full border border-black/15;
+  }
+
+  .screen-header-glyph {
+    @apply text-xl font-sans-bold text-primary;
+  }
+
+  /* Bundled glyphs are already navy on transparent, but they are tinted at the
+     call site too so they can never inherit a light tint on a light surface. */
+  .screen-header-icon {
+    @apply size-5;
+  }
+
+  .screen-header-title {
+    @apply text-2xl font-sans-bold text-primary;
+  }
+
+  .screen-header-spacer {
+    @apply size-12;
+  }
+
+  /* Overflow menu opened from a circular "..." header control. */
+  .menu-backdrop {
+    @apply flex-1 bg-black/20;
+  }
+
+  .menu-sheet {
+    @apply absolute right-5 min-w-56 overflow-hidden rounded-2xl border border-border bg-card py-1 shadow-2xl;
+  }
+
+  .menu-item {
+    @apply flex-row items-center justify-between gap-4 px-5 py-3.5;
+  }
+
+  .menu-item-text {
+    @apply text-base font-sans-semibold text-primary;
+  }
+
+  .menu-item-text-active {
+    @apply text-accent;
+  }
+
+  .menu-item-check {
+    @apply text-base font-sans-bold text-accent;
+  }
+
+  /* Weekly spend chart */
+  .chart-card {
+    @apply rounded-3xl bg-muted p-5;
+  }
+
+  .chart-plot {
+    @apply flex-row;
+  }
+
+  .chart-y-axis {
+    @apply mr-3 items-end justify-between;
+  }
+
+  .chart-y-label {
+    @apply text-xs font-sans-medium text-black/40;
+  }
+
+  .chart-area {
+    @apply flex-1;
+  }
+
+  .chart-gridline {
+    @apply absolute h-px w-full bg-black/10;
+  }
+
+  .chart-bars {
+    @apply flex-1 flex-row items-end;
+  }
+
+  .chart-bar-slot {
+    @apply flex-1 items-center justify-end;
+  }
+
+  .chart-bar {
+    @apply w-2.5 rounded-full bg-primary;
+  }
+
+  .chart-bar-active {
+    @apply bg-accent;
+  }
+
+  .chart-bar-empty {
+    @apply bg-black/10;
+  }
+
+  .chart-day-row {
+    @apply mt-3 flex-row;
+  }
+
+  .chart-day {
+    @apply flex-1 text-center text-xs font-sans-medium text-black/50;
+  }
+
+  .chart-tooltip {
+    @apply absolute self-center rounded-xl bg-background px-3 py-1;
+  }
+
+  .chart-tooltip-text {
+    @apply text-xs font-sans-bold text-accent;
+  }
+
+  /* Expenses summary */
+  .expenses-card {
+    @apply mt-5 rounded-3xl border border-border bg-card p-5;
+  }
+
+  .expenses-row {
+    @apply flex-row items-center justify-between;
+  }
+
+  .expenses-title {
+    @apply text-xl font-sans-bold text-primary;
+  }
+
+  .expenses-amount {
+    @apply text-xl font-sans-bold text-primary;
+  }
+
+  .expenses-meta {
+    @apply mt-1 text-sm font-sans-medium text-muted-foreground;
+  }
+
+  /* Insights breakdown */
+  .insights-card {
+    @apply mt-5 rounded-3xl border border-border bg-card p-5;
+  }
+
+  .insights-card-title {
+    @apply mb-4 text-lg font-sans-bold text-primary;
+  }
+
+  .insights-stat-row {
+    @apply flex-row justify-between;
+  }
+
+  .insights-stat {
+    @apply flex-1 items-center;
+  }
+
+  .insights-stat-value {
+    @apply text-2xl font-sans-extrabold text-primary;
+  }
+
+  .insights-stat-label {
+    @apply mt-1 text-xs font-sans-medium text-muted-foreground;
+  }
+
+  .insights-category {
+    @apply mb-4;
+  }
+
+  .insights-category-head {
+    @apply flex-row items-center justify-between gap-3;
+  }
+
+  .insights-category-name {
+    @apply min-w-0 flex-1 text-base font-sans-semibold text-primary;
+  }
+
+  .insights-category-amount {
+    @apply text-base font-sans-bold text-primary;
+  }
+
+  .insights-bar-track {
+    @apply mt-2 h-2.5 w-full overflow-hidden rounded-full bg-muted;
+  }
+
+  .insights-bar-fill {
+    @apply h-full rounded-full;
+  }
+
+  .insights-category-meta {
+    @apply mt-1.5 text-xs font-sans-medium text-muted-foreground;
+  }
+
+  /* Subscription detail */
+  .detail-hero {
+    @apply mb-6 items-center rounded-3xl p-6;
+  }
+
+  .detail-hero-icon {
+    @apply size-16 rounded-2xl;
+  }
+
+  .detail-hero-name {
+    @apply mt-4 text-center text-2xl font-sans-bold text-primary;
+  }
+
+  .detail-hero-price {
+    @apply mt-1 text-3xl font-sans-extrabold text-primary;
+  }
+
+  .detail-hero-billing {
+    @apply mt-1 text-sm font-sans-medium text-black/60;
+  }
+
+  .detail-status-pill {
+    @apply mt-4 rounded-full bg-background/70 px-4 py-1.5;
+  }
+
+  .detail-status-text {
+    @apply text-xs font-sans-bold uppercase text-primary;
+  }
+
+  .detail-actions {
+    @apply mt-2 gap-3;
+  }
+
+  .detail-secondary-button {
+    @apply items-center rounded-full border border-primary/30 py-4;
+  }
+
+  .detail-secondary-text {
+    @apply text-base font-sans-bold text-primary;
+  }
+
+  .detail-danger-button {
+    @apply items-center rounded-full border border-destructive/40 py-4;
+  }
+
+  .detail-danger-text {
+    @apply text-base font-sans-bold text-destructive;
+  }
+
+  /* Create-modal pickers */
+  .icon-picker-row {
+    @apply flex-row flex-wrap gap-3;
+  }
+
+  .icon-picker-option {
+    @apply size-12 items-center justify-center rounded-2xl border border-border bg-background;
+  }
+
+  .icon-picker-option-active {
+    @apply border-accent bg-accent/10;
+  }
+
+  .icon-picker-glyph {
+    @apply size-7;
+  }
+
+  /* Auth: social sign-in */
+  .auth-social-button {
+    @apply flex-row items-center justify-center gap-3 rounded-full border border-primary/25 py-4;
+  }
+
+  .auth-social-text {
+    @apply text-base font-sans-bold text-primary;
   }
 }

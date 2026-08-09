@@ -37,7 +37,8 @@ export const SubscriptionsProvider = ({
   userId,
   children,
 }: {
-  userId: string;
+  /** `null` while signed out — the provider stays mounted and simply holds no data. */
+  userId: string | null;
   children: ReactNode;
 }) => {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
@@ -54,6 +55,13 @@ export const SubscriptionsProvider = ({
   }, []);
 
   const load = useCallback(async () => {
+    if (!userId) {
+      setSubscriptions([]);
+      setStatus("ready");
+      setError(undefined);
+      return;
+    }
+
     setStatus("loading");
     setError(undefined);
 
@@ -77,6 +85,7 @@ export const SubscriptionsProvider = ({
 
   const addSubscription = useCallback(
     async (input: CreateSubscriptionInput) => {
+      if (!userId) return undefined;
       try {
         const created = await subscriptionRepository.create(userId, input);
         if (isMountedRef.current) {
@@ -94,6 +103,7 @@ export const SubscriptionsProvider = ({
 
   const updateSubscription = useCallback(
     async (id: string, patch: UpdateSubscriptionPatch) => {
+      if (!userId) return;
       try {
         const updated = await subscriptionRepository.update(userId, id, patch);
         if (!updated || !isMountedRef.current) return;
@@ -110,6 +120,7 @@ export const SubscriptionsProvider = ({
 
   const removeSubscription = useCallback(
     async (id: string) => {
+      if (!userId) return;
       try {
         await subscriptionRepository.remove(userId, id);
         if (!isMountedRef.current) return;

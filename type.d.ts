@@ -63,6 +63,10 @@ declare global {
         onPress: () => void;
         onCancelPress?: () => void;
         isCancelling?: boolean;
+        /** When provided, the expanded card offers a link to the detail route. */
+        onDetailsPress?: () => void;
+        /** Backs the "Manage" / "Change" pills on the expanded card. */
+        onEditPress?: () => void;
     }
 
     interface UpcomingSubscription {
@@ -77,14 +81,36 @@ declare global {
     interface UpcomingSubscriptionCardProps
         extends Omit<UpcomingSubscription, "id"> {}
 
+    interface DailySpend {
+        /** Short weekday label, e.g. "Mon". */
+        label: string;
+        /** Total renewal amount falling on that day. */
+        total: number;
+    }
+
+    interface WeeklySpendChartProps {
+        days: DailySpend[];
+        currency?: string;
+    }
+
     interface ListHeadingProps {
         title: string;
+        /** When omitted, the "View all" pill is not rendered at all. */
+        onActionPress?: () => void;
+        actionLabel?: string;
     }
 
     interface CreateSubscriptionModalProps {
         visible: boolean;
         onClose: () => void;
-        onCreate: (subscription: CreateSubscriptionInput) => void;
+        /** Omitted where the sheet is only ever opened to edit an existing row. */
+        onCreate?: (subscription: CreateSubscriptionInput) => void;
+        /**
+         * When set, the sheet opens in edit mode with every field prefilled
+         * from this row and saves through `onUpdate` instead of `onCreate`.
+         */
+        subscription?: Subscription | null;
+        onUpdate?: (id: string, patch: UpdateSubscriptionPatch) => void;
     }
 }
 
