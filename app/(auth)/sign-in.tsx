@@ -23,6 +23,8 @@ const SafeAreaView = styled(RNSafeAreaView);
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RESEND_COOLDOWN_SECONDS = 30;
+const UNEXPECTED_ERROR =
+  "Something went wrong. Check your connection and try again.";
 
 type Stage = "form" | "verify";
 
@@ -106,33 +108,37 @@ const SignIn = () => {
     if (!validate()) return;
     setStatusNotice(undefined);
 
-    const { error } = await signIn.password({
-      identifier: identifier.trim(),
-      password,
-    });
-    if (error) return;
+    try {
+      const { error } = await signIn.password({
+        identifier: identifier.trim(),
+        password,
+      });
+      if (error) return;
 
-    if (signIn.status === "complete") {
-      await finalizeSession();
-      return;
-    }
-
-    if (signIn.status === "needs_client_trust" || signIn.status === "needs_second_factor") {
-      const supportsEmailCode = signIn.supportedSecondFactors.some(
-        (factor) => factor.strategy === "email_code"
-      );
-      if (supportsEmailCode) {
-        const { error: sendError } = await signIn.mfa.sendEmailCode();
-        if (sendError) return;
-        setStage("verify");
-        setCooldown(RESEND_COOLDOWN_SECONDS);
+      if (signIn.status === "complete") {
+        await finalizeSession();
         return;
       }
-    }
 
-    setStatusNotice(
-      "This account requires additional verification that isn't supported yet. Please contact support."
-    );
+      if (signIn.status === "needs_client_trust" || signIn.status === "needs_second_factor") {
+        const supportsEmailCode = signIn.supportedSecondFactors.some(
+          (factor) => factor.strategy === "email_code"
+        );
+        if (supportsEmailCode) {
+          const { error: sendError } = await signIn.mfa.sendEmailCode();
+          if (sendError) return;
+          setStage("verify");
+          setCooldown(RESEND_COOLDOWN_SECONDS);
+          return;
+        }
+      }
+
+      setStatusNotice(
+        "This account requires additional verification that isn't supported yet. Please contact support."
+      );
+    } catch {
+      setStatusNotice(UNEXPECTED_ERROR);
+    }
   };
 
   const handleVerify = async () => {
@@ -144,30 +150,40 @@ const SignIn = () => {
     setCodeError(undefined);
     setStatusNotice(undefined);
 
-    const { error } = await signIn.mfa.verifyEmailCode({ code: code.trim() });
-    if (error) return;
+    try {
+      const { error } = await signIn.mfa.verifyEmailCode({ code: code.trim() });
+      if (error) return;
 
-    if (signIn.status === "complete") {
-      await finalizeSession();
-      return;
+      if (signIn.status === "complete") {
+        await finalizeSession();
+        return;
+      }
+
+      setStatusNotice(
+        "This account requires additional verification that isn't supported yet. Please contact support."
+      );
+    } catch {
+      setStatusNotice(UNEXPECTED_ERROR);
     }
-
-    setStatusNotice(
-      "This account requires additional verification that isn't supported yet. Please contact support."
-    );
   };
 
   const handleResend = async () => {
     if (!signIn || cooldown > 0 || isSubmitting) return;
-    const { error } = await signIn.mfa.sendEmailCode();
-    if (!error) {
-      setCooldown(RESEND_COOLDOWN_SECONDS);
+    try {
+      const { error } = await signIn.mfa.sendEmailCode();
+      if (!error) {
+        setCooldown(RESEND_COOLDOWN_SECONDS);
+      }
+    } catch {
+      setStatusNotice(UNEXPECTED_ERROR);
     }
   };
 
   const handleUseDifferentAccount = async () => {
     try {
       await signIn?.reset();
+    } catch {
+      // Resetting is best-effort; the local form is cleared either way.
     } finally {
       setStage("form");
       setCode("");

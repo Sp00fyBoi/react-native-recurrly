@@ -16,14 +16,18 @@ const Settings = () => {
   const { user, isLoaded } = useUser();
   const posthog = usePostHog();
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState<string | undefined>();
 
   const handleSignOut = async () => {
     if (isSigningOut) return;
     setIsSigningOut(true);
+    setSignOutError(undefined);
     try {
       await signOut();
       posthog.capture("sign_out_completed");
       posthog.reset();
+    } catch {
+      setSignOutError("Couldn't sign out. Check your connection and try again.");
     } finally {
       setIsSigningOut(false);
     }
@@ -87,6 +91,10 @@ const Settings = () => {
             </View>
           </View>
         </>
+      )}
+
+      {signOutError && (
+        <Text className="auth-error text-center">{signOutError}</Text>
       )}
 
       <Pressable

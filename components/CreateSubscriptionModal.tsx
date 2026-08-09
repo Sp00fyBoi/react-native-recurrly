@@ -2,8 +2,9 @@ import { icons } from "@/constants/icons";
 import { colors } from "@/constants/theme";
 import { clsx } from "clsx";
 import dayjs from "dayjs";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -59,6 +60,32 @@ const validatePrice = (value: string): string | undefined => {
   return undefined;
 };
 
+// Android renders <Modal> in its own native Dialog window, which the activity's
+// adjustResize / edge-to-edge handling doesn't reach, so KeyboardAvoidingView
+// never receives correct resize events in there and the keyboard covers the
+// inputs. Track the keyboard height directly and pad the container instead.
+const useAndroidKeyboardHeight = () => {
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    if (Platform.OS !== "android") return;
+
+    const showSub = Keyboard.addListener("keyboardDidShow", (event) => {
+      setKeyboardHeight(event.endCoordinates.height);
+    });
+    const hideSub = Keyboard.addListener("keyboardDidHide", () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  return keyboardHeight;
+};
+
 const CreateSubscriptionModal = ({
   visible,
   onClose,
@@ -69,6 +96,7 @@ const CreateSubscriptionModal = ({
   const [frequency, setFrequency] = useState<Frequency>("Monthly");
   const [category, setCategory] = useState<Category>("Entertainment");
   const [formErrors, setFormErrors] = useState<FormErrors>({});
+  const androidKeyboardHeight = useAndroidKeyboardHeight();
 
   const isValid = !validateName(name) && !validatePrice(price);
 
@@ -126,15 +154,23 @@ const CreateSubscriptionModal = ({
       visible={visible}
       transparent
       animationType="slide"
+      statusBarTranslucent
       onRequestClose={handleClose}
     >
       <View className="modal-overlay">
         <KeyboardAvoidingView
           className="flex-1 justify-end"
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
           keyboardVerticalOffset={0}
         >
-          <View className="modal-container">
+          <View
+            className="modal-container"
+            style={
+              Platform.OS === "android"
+                ? { marginBottom: androidKeyboardHeight }
+                : undefined
+            }
+          >
             <View className="modal-header">
               <Text className="modal-title">New Subscription</Text>
               <Pressable
@@ -270,13 +306,15 @@ const CreateSubscriptionModal = ({
                   </View>
                 </View>
 
+                {/* Stays pressable while invalid so handleSubmit can surface
+                    which fields are missing, rather than leaving the user with
+                    a dimmed button and no explanation. */}
                 <Pressable
                   className={clsx(
                     "auth-button",
                     !isValid && "auth-button-disabled",
                   )}
                   onPress={handleSubmit}
-                  disabled={!isValid}
                 >
                   <Text className="auth-button-text">Add Subscription</Text>
                 </Pressable>
