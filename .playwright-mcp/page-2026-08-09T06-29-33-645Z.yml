@@ -1,0 +1,25 @@
+- generic [ref=e20]:
+  - generic [ref=e21]:
+    - generic [ref=e25]:
+      - generic [ref=e26]: Recurly
+      - generic [ref=e27]: Smart Billing
+    - generic [ref=e28]: Create your account
+    - generic [ref=e29]: Start tracking every subscription in one smart place
+  - generic [ref=e30]:
+    - generic [ref=e31]:
+      - generic [ref=e32]:
+        - generic [ref=e33]: Email
+        - textbox "Enter your email" [ref=e34]: debugtest0809@example.com
+      - generic [ref=e35]:
+        - generic [ref=e36]:
+          - generic [ref=e37]: Password
+          - generic [ref=e38] [cursor=pointer]: Show
+        - textbox "Create a password" [ref=e40]: Xk9$mQ7!vB2wLp4z
+      - generic [ref=e41]:
+        - generic [ref=e42]: Confirm password
+        - textbox "Re-enter your password" [ref=e43]: Xk9$mQ7!vB2wLp4z
+      - progressbar [ref=e56]
+    - generic [ref=e46]:
+      - generic [ref=e47]: Already have an account?
+      - link "Sign in" [ref=e48] [cursor=pointer]:
+        - /url: /sign-in
