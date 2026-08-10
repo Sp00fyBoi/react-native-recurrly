@@ -38,8 +38,12 @@ export const SubscriptionsProvider = ({
   userId,
   children,
 }: {
-  /** `null` while signed out — the provider stays mounted and simply holds no data. */
-  userId: string | null;
+  /**
+   * `undefined` while Clerk is still resolving auth state (stays "loading"),
+   * `null` once it has confirmed signed-out (goes "ready" with no data), and
+   * the Clerk user id once signed in.
+   */
+  userId: string | null | undefined;
   children: ReactNode;
 }) => {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
@@ -55,6 +59,13 @@ export const SubscriptionsProvider = ({
     };
   }, []);
 
+  // Lets in-flight writes started under one user detect a switch and discard
+  // their result instead of merging it into the next user's list.
+  const activeUserRef = useRef(userId);
+  useEffect(() => {
+    activeUserRef.current = userId;
+  }, [userId]);
+
   // Every load claims a ticket. Seeding plus listing is slow enough that a fast
   // user switch (or a manual refresh during one) can leave two runs in flight;
   // without this the older one lands last and shows the previous account's rows.
@@ -64,6 +75,13 @@ export const SubscriptionsProvider = ({
     const runId = ++loadRunRef.current;
     const isSuperseded = () =>
       !isMountedRef.current || loadRunRef.current !== runId;
+
+    if (userId === undefined) {
+      // Clerk hasn't resolved yet — stay "loading" rather than flashing an
+      // empty "ready" state that reads as a real, data-less account.
+      setStatus("loading");
+      return;
+    }
 
     if (!userId) {
       setSubscriptions([]);
@@ -96,15 +114,18 @@ export const SubscriptionsProvider = ({
   const addSubscription = useCallback(
     async (input: CreateSubscriptionInput) => {
       if (!userId) return undefined;
+      const requestUserId = userId;
+      const isForActiveUser = () =>
+        isMountedRef.current && activeUserRef.current === requestUserId;
       try {
         const created = await subscriptionRepository.create(userId, input);
-        if (isMountedRef.current) {
-          setSubscriptions((current) => [created, ...current]);
-          setError(undefined);
-        }
+        if (!isForActiveUser()) return undefined;
+        setSubscriptions((current) => [created, ...current]);
+        setError(undefined);
         return created;
-      } catch {
-        if (isMountedRef.current) setError(WRITE_ERROR);
+      } catch (err) {
+        console.warn("Failed to create subscription", err);
+        if (isForActiveUser()) setError(WRITE_ERROR);
         return undefined;
       }
     },
@@ -114,18 +135,21 @@ export const SubscriptionsProvider = ({
   const updateSubscription = useCallback(
     async (id: string, patch: UpdateSubscriptionPatch) => {
       if (!userId) return false;
+      const requestUserId = userId;
+      const isForActiveUser = () =>
+        isMountedRef.current && activeUserRef.current === requestUserId;
       try {
         const updated = await subscriptionRepository.update(userId, id, patch);
         if (!updated) return false;
-        if (isMountedRef.current) {
-          setSubscriptions((current) =>
-            current.map((item) => (item.id === id ? updated : item)),
-          );
-          setError(undefined);
-        }
+        if (!isForActiveUser()) return false;
+        setSubscriptions((current) =>
+          current.map((item) => (item.id === id ? updated : item)),
+        );
+        setError(undefined);
         return true;
-      } catch {
-        if (isMountedRef.current) setError(WRITE_ERROR);
+      } catch (err) {
+        console.warn("Failed to update subscription", err);
+        if (isForActiveUser()) setError(WRITE_ERROR);
         return false;
       }
     },
@@ -135,17 +159,20 @@ export const SubscriptionsProvider = ({
   const removeSubscription = useCallback(
     async (id: string) => {
       if (!userId) return false;
+      const requestUserId = userId;
+      const isForActiveUser = () =>
+        isMountedRef.current && activeUserRef.current === requestUserId;
       try {
         await subscriptionRepository.remove(userId, id);
-        if (isMountedRef.current) {
-          setSubscriptions((current) =>
-            current.filter((item) => item.id !== id),
-          );
-          setError(undefined);
-        }
+        if (!isForActiveUser()) return false;
+        setSubscriptions((current) =>
+          current.filter((item) => item.id !== id),
+        );
+        setError(undefined);
         return true;
-      } catch {
-        if (isMountedRef.current) setError(WRITE_ERROR);
+      } catch (err) {
+        console.warn("Failed to remove subscription", err);
+        if (isForActiveUser()) setError(WRITE_ERROR);
         return false;
       }
     },

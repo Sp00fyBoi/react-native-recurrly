@@ -45,6 +45,7 @@
       "adaptiveIcon": {
         "backgroundColor": "#ea7a53",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/icons/logo.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
@@ -65,7 +66,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-pattern.png",
+          "image": "./assets/icons/logo.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#fff9e3"
@@ -91,6 +92,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "37aeb7b7-b7b8-43e0-9e87-2dd4363bfaee"
+      }
     }
   }
 }

@@ -83,7 +83,12 @@ const WeeklySpendChart = ({
                     day.total > 0 ? Math.max(ratio * PLOT_HEIGHT, 6) : 4;
 
                   return (
-                    <View key={day.label + index} className="chart-bar-slot">
+                    <View
+                      key={day.label + index}
+                      className="chart-bar-slot"
+                      accessible
+                      accessibilityLabel={`${day.label}: ${formatCurrency(day.total, currency)}`}
+                    >
                       {isPeak && (
                         <View
                           className="chart-tooltip"

@@ -1,4 +1,4 @@
-import { DEMO_SUBSCRIPTIONS } from "@/constants/data";
+import { buildDemoSubscriptions } from "@/constants/data";
 import { getMeta, setMeta } from "@/lib/db/meta";
 
 import type { SubscriptionRepository } from "./types";
@@ -31,7 +31,7 @@ const runSeed = async (
   // row that did land. A short demo list is the better thing to lose.
   await setMeta(seedKey(userId), new Date().toISOString());
 
-  for (const subscription of DEMO_SUBSCRIPTIONS) {
+  for (const subscription of buildDemoSubscriptions()) {
     await repository.create(userId, subscription);
   }
 

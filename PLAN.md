@@ -1,5 +1,11 @@
 # Recurrly — Codebase Audit & Remediation Plan
 
+> **Status:** this is a point-in-time audit baseline. Findings below (e.g. W5's
+> in-memory-only storage) describe the codebase as it stood at audit time and
+> have since been addressed — SQLite-backed, per-account persistence
+> (`expo-sqlite`) now exists. Treat this document as a historical record, not
+> current state.
+
 ## Context
 
 A read-only audit of the full Expo SDK 54 / Expo Router 6 codebase (19 source files across `app/`, `components/`, `lib/`, `constants/`) was requested to find broken features, runtime hazards, and unimplemented functionality before further feature work. Styling/theme is finalised and out of scope except where a dead class reference breaks layout.

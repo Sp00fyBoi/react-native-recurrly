@@ -44,7 +44,7 @@ const sortSubscriptions = (
   items: Subscription[],
   sortBy: SortKey,
 ): Subscription[] => {
-  if (sortBy === "recent") return items;
+  if (sortBy === "recent") return [...items];
 
   return [...items].sort((a, b) => {
     switch (sortBy) {
@@ -268,7 +268,7 @@ const Subscriptions = () => {
             <TextInput
               value={query}
               onChangeText={setQuery}
-              placeholder="Search by name, plan, or category"
+              placeholder="Search by name, plan, category, or payment method"
               placeholderTextColor={colors.mutedForeground}
               autoCapitalize="none"
               autoCorrect={false}

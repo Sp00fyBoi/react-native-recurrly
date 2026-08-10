@@ -1,16 +1,16 @@
-import { currencySymbol, DEFAULT_CURRENCY } from "@/lib/currency";
+import { currencySymbol, DEFAULT_CURRENCY, normalize } from "@/lib/currency";
 import dayjs from "dayjs";
 
-export const formatCurrency = (
-  value: number,
-  currency = DEFAULT_CURRENCY,
-): string => {
+export const formatCurrency = (value: number, currency?: string): string => {
+  const normalized = normalize(currency);
   try {
-    // `en-IN` so the default currency gets Indian digit grouping (₹1,23,456.00);
-    // other codes still render with their own symbol.
-    return new Intl.NumberFormat("en-IN", {
+    // `en-IN` only for the reporting currency, so INR gets Indian digit
+    // grouping (₹1,23,456.00). Other codes use the runtime's default locale
+    // rather than inheriting Indian grouping they were never meant to have.
+    const locale = normalized === DEFAULT_CURRENCY ? "en-IN" : undefined;
+    return new Intl.NumberFormat(locale, {
       style: "currency",
-      currency,
+      currency: normalized,
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(value);
@@ -18,9 +18,9 @@ export const formatCurrency = (
     // Some Hermes builds ship without full ICU. A bare number reads as the
     // wrong currency entirely, so keep at least the symbol — falling back to
     // the code itself for anything we have no symbol for.
-    const symbol = currencySymbol(currency);
+    const symbol = currencySymbol(normalized);
     const amount = value.toFixed(2);
-    return symbol ? `${symbol}${amount}` : `${amount} ${currency}`;
+    return symbol ? `${symbol}${amount}` : `${amount} ${normalized}`;
   }
 };
 

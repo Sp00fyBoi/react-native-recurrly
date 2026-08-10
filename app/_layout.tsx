@@ -54,7 +54,10 @@ function ConfigurationError({ variable }: { variable: string }) {
  */
 function SignedInProviders({ children }: { children: ReactNode }) {
   const { isLoaded, isSignedIn, user } = useUser();
-  const userId = isLoaded && isSignedIn && user ? user.id : null;
+  // `undefined` while Clerk is still resolving, `null` once it has confirmed
+  // signed-out, and the Clerk user id once signed in — the store uses this to
+  // tell "still loading" apart from "confirmed no user".
+  const userId = !isLoaded ? undefined : isSignedIn && user ? user.id : null;
 
   // Always rendered, even signed out, so the element type at this position
   // never changes — swapping it would remount the whole navigation Stack the
