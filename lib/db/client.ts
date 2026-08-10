@@ -12,14 +12,18 @@ const migrate = async (db: SQLite.SQLiteDatabase) => {
 
   if (currentVersion >= DATABASE_VERSION) return;
 
-  if (currentVersion === 0) {
-    await db.execAsync(MIGRATION_V1);
-  }
+  // One exclusive transaction so a failure part-way leaves the database at its
+  // old version rather than half-migrated but stamped as current.
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    if (currentVersion === 0) {
+      await txn.execAsync(MIGRATION_V1);
+    }
 
-  // Future migrations append here as `if (currentVersion === 1) { … }` blocks
-  // and bump DATABASE_VERSION in schema.ts.
+    // Future migrations append here as `if (currentVersion === 1) { … }` blocks
+    // and bump DATABASE_VERSION in schema.ts.
 
-  await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
+    await txn.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
+  });
 };
 
 /**

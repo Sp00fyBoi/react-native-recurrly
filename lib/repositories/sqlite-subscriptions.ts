@@ -30,9 +30,12 @@ export const createSqliteSubscriptionRepository = (): SubscriptionRepository => 
   async list(userId) {
     const db = await getDatabase();
     const rows = await db.getAllAsync<SubscriptionRow>(
+      // Ordered on the raw column, not datetime(created_at): the values are
+      // ISO-8601 from toISOString(), which sorts correctly as text, and the
+      // bare column keeps subsecond precision and stays index-usable.
       `SELECT ${SELECT_COLUMNS} FROM subscriptions
        WHERE user_id = ?
-       ORDER BY datetime(created_at) DESC`,
+       ORDER BY created_at DESC`,
       userId,
     );
     return rows.map(toSubscription);

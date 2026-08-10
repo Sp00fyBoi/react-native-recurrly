@@ -76,8 +76,14 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
       <Text className="auth-subtitle">
         The app hit an unexpected error. You can try again.
       </Text>
+      {/* Raw messages can carry internals (paths, ids, query fragments), so
+          they stay in development builds only. */}
       <ScrollView className="max-h-40 my-4">
-        <Text className="auth-error">{error.message}</Text>
+        <Text className="auth-error">
+          {__DEV__
+            ? error.message
+            : "If this keeps happening, please contact support."}
+        </Text>
       </ScrollView>
       <Pressable
         className="auth-button"

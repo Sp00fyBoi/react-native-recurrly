@@ -162,6 +162,7 @@ const SubscriptionCard = ({
               disabled={isCancelling}
               accessibilityRole="button"
               accessibilityLabel={`Cancel ${name}`}
+              accessibilityState={{ busy: isCancelling, disabled: isCancelling }}
             >
               {isCancelling ? (
                 <ActivityIndicator color={colors.background} />

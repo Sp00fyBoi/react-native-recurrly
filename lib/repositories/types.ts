@@ -12,6 +12,11 @@ export interface SubscriptionRepository {
     userId: string,
     input: CreateSubscriptionInput,
   ): Promise<Subscription>;
+  /**
+   * Returns the row as it now stands, or `undefined` if no row matches.
+   * A patch whose keys are all `undefined` writes nothing but still returns
+   * the current row — callers can treat that as a successful no-op.
+   */
   update(
     userId: string,
     id: string,

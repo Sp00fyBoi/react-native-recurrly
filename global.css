@@ -48,13 +48,23 @@
 @layer components {
   /* The single container rule every screen uses, so horizontal gutters and
      top spacing can never drift apart between Home, Subscriptions, Insights,
-     Settings and the detail route. */
+     Settings and the detail route.
+
+     `pl-5 pr-5` rather than `px-5`, and it has to stay that way: both rules sit
+     on a `SafeAreaView`, whose shadow node rewrites `paddingLeft`/`paddingRight`
+     to "your padding + the safe-area inset". It reads that padding off the raw
+     Yoga style, but `px-*` compiles to CSS `padding-inline` -> RN's
+     `paddingInline`, which React Native applies as a *later* alias pass. So the
+     inset rewrite saw no horizontal padding, wrote 0 + 0 into the higher-priority
+     Left/Right edges, and every screen rendered edge-to-edge. `pl/pr` compile to
+     plain `paddingLeft`/`paddingRight`, which the inset pass can see and add to.
+     The same trap applies to `py-*` (`paddingBlock`) on a SafeAreaView. */
   .screen {
-    @apply flex-1 bg-background px-5 pt-5;
+    @apply flex-1 bg-background pl-5 pr-5 pt-5;
   }
 
   .screen-centered {
-    @apply flex-1 items-center justify-center bg-background px-5;
+    @apply flex-1 items-center justify-center bg-background pl-5 pr-5;
   }
 
   /* Clears the floating tab bar (72px tall, 20px inset from the bottom). */
@@ -434,8 +444,10 @@
     @apply flex-row flex-wrap gap-2;
   }
 
+  /* py-2.5 rather than py-2: these are the currency and category selectors, and
+     8px vertical left them a ~36px tap target. */
   .category-chip {
-    @apply rounded-full border border-border bg-background px-4 py-2;
+    @apply rounded-full border border-border bg-background px-4 py-2.5;
   }
 
   .category-chip-active {

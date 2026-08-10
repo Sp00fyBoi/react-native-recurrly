@@ -161,6 +161,10 @@ const Settings = () => {
           onPress={handleSignOut}
           disabled={isSigningOut}
           accessibilityRole="button"
+          // The spinner replaces the label while signing out, which would
+          // otherwise leave the control with no accessible name at all.
+          accessibilityLabel="Sign Out"
+          accessibilityState={{ busy: isSigningOut, disabled: isSigningOut }}
         >
           {isSigningOut ? (
             <ActivityIndicator color={colors.primary} />

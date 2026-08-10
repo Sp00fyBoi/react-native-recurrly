@@ -226,10 +226,13 @@ const CreateSubscriptionModal = ({
     const trimmedPayment = paymentMethod.trim();
     const parsedPrice = Number(price.trim());
 
-    if (subscription && onUpdate) {
+    // Branch on `subscription` alone. Requiring `onUpdate` here too meant an
+    // edit opened without a handler fell through to the create path and
+    // silently inserted a duplicate row instead of doing nothing.
+    if (subscription) {
       // Start and renewal dates are deliberately untouched: the next charge was
       // already scheduled, and recomputing it here would silently move it.
-      onUpdate(subscription.id, {
+      onUpdate?.(subscription.id, {
         name: trimmedName,
         iconKey: pickedIconKey ?? matchIconKey(trimmedName),
         plan: trimmedPlan,

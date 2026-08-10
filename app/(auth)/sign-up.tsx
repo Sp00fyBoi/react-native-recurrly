@@ -9,7 +9,6 @@ import {
   ActivityIndicator,
   Image,
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -193,15 +192,18 @@ const SignUp = () => {
 
   return (
     <SafeAreaView className="auth-safe-area">
-      <KeyboardAvoidingView
-        className="flex-1"
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
+      {/* `padding` on Android too, not just iOS. `edgeToEdgeEnabled` adds
+          windowTranslucentStatus, which Expo documents as breaking the default
+          `resize` keyboard mode — leaving `behavior` undefined there made this
+          a no-op and let the keyboard sit over the confirm-password field. */}
+      <KeyboardAvoidingView className="flex-1" behavior="padding">
         <ScrollView
           className="auth-scroll"
           contentContainerClassName="auth-content"
           keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
+          // Not "on-drag": scrolling to reach a field below the fold should not
+          // close the keyboard the user is mid-way through typing with.
+          keyboardDismissMode="none"
           showsVerticalScrollIndicator={false}
         >
           <View className="auth-brand-block">
