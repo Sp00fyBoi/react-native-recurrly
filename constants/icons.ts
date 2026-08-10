@@ -1,3 +1,5 @@
+import { colors } from "@/constants/theme";
+
 import activity from "@/assets/icons/activity.png";
 import add from "@/assets/icons/add.png";
 import adobe from "@/assets/icons/adobe.png";
@@ -39,3 +41,23 @@ export const icons = {
 } as const;
 
 export type IconKey = keyof typeof icons;
+
+/**
+ * Glyphs authored white-on-transparent for the dark tab bar. They are invisible
+ * on the app's cream surfaces, so anything drawing them outside the tab bar has
+ * to tint them — `wallet` in particular is the fallback icon for every
+ * subscription that doesn't match a brand.
+ */
+const LIGHT_ON_DARK_GLYPHS: readonly IconKey[] = [
+    "home",
+    "wallet",
+    "setting",
+    "activity",
+];
+
+/**
+ * Tint to apply when rendering `key` on a light surface, or `undefined` for
+ * full-colour brand logos that must not be flattened.
+ */
+export const tintForLightSurface = (key: IconKey): string | undefined =>
+    LIGHT_ON_DARK_GLYPHS.includes(key) ? colors.primary : undefined;

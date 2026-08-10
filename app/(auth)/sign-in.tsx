@@ -1,7 +1,9 @@
 import images from "@/constants/images";
 import { colors } from "@/constants/theme";
 import { useSignIn } from "@clerk/expo";
+import { useSSO } from "@clerk/expo/experimental";
 import { Link, useRouter } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
 import { clsx } from "clsx";
 import { styled } from "nativewind";
 import { useEffect, useState } from "react";
@@ -23,8 +25,53 @@ const SafeAreaView = styled(RNSafeAreaView);
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RESEND_COOLDOWN_SECONDS = 30;
+const MIN_PASSWORD_LENGTH = 8;
+const UNEXPECTED_ERROR =
+  "Something went wrong. Check your connection and try again.";
 
-type Stage = "form" | "verify";
+type Stage = "form" | "verify" | "reset-code" | "reset-password";
+
+/**
+ * Clerk throws structured errors out of the SSO flow rather than returning
+ * them, and so does the dependency loader inside it. Reporting the real text
+ * matters: a missing native dependency used to surface as "check your
+ * connection", which sent debugging in entirely the wrong direction.
+ */
+const describeError = (error: unknown): string => {
+  if (!error || typeof error !== "object") return UNEXPECTED_ERROR;
+
+  const candidate = error as {
+    message?: unknown;
+    longMessage?: unknown;
+    errors?: { message?: unknown; longMessage?: unknown }[];
+  };
+  const first = candidate.errors?.[0];
+
+  for (const value of [
+    first?.longMessage,
+    first?.message,
+    candidate.longMessage,
+    candidate.message,
+  ]) {
+    if (typeof value === "string" && value.trim()) return value;
+  }
+
+  return UNEXPECTED_ERROR;
+};
+
+/**
+ * Android keeps the Custom Tab process cold otherwise, which makes the OAuth
+ * hand-off slow and, on some devices, drop the redirect entirely.
+ */
+const useWarmUpBrowser = () => {
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    void WebBrowser.warmUpAsync();
+    return () => {
+      void WebBrowser.coolDownAsync();
+    };
+  }, []);
+};
 
 type FieldErrors = {
   identifier?: string;
@@ -33,8 +80,11 @@ type FieldErrors = {
 
 const SignIn = () => {
   const { signIn, errors, fetchStatus } = useSignIn();
+  const { startSSOFlow } = useSSO();
   const router = useRouter();
   const posthog = usePostHog();
+
+  useWarmUpBrowser();
 
   const [stage, setStage] = useState<Stage>("form");
   const [identifier, setIdentifier] = useState("");
@@ -46,6 +96,10 @@ const SignIn = () => {
   const [code, setCode] = useState("");
   const [codeError, setCodeError] = useState<string | undefined>();
   const [cooldown, setCooldown] = useState(0);
+
+  const [newPassword, setNewPassword] = useState("");
+  const [newPasswordError, setNewPasswordError] = useState<string | undefined>();
+  const [isSocialBusy, setIsSocialBusy] = useState(false);
 
   const isSubmitting = fetchStatus === "fetching";
   const globalError = errors.global?.[0];
@@ -106,33 +160,37 @@ const SignIn = () => {
     if (!validate()) return;
     setStatusNotice(undefined);
 
-    const { error } = await signIn.password({
-      identifier: identifier.trim(),
-      password,
-    });
-    if (error) return;
+    try {
+      const { error } = await signIn.password({
+        identifier: identifier.trim(),
+        password,
+      });
+      if (error) return;
 
-    if (signIn.status === "complete") {
-      await finalizeSession();
-      return;
-    }
-
-    if (signIn.status === "needs_client_trust" || signIn.status === "needs_second_factor") {
-      const supportsEmailCode = signIn.supportedSecondFactors.some(
-        (factor) => factor.strategy === "email_code"
-      );
-      if (supportsEmailCode) {
-        const { error: sendError } = await signIn.mfa.sendEmailCode();
-        if (sendError) return;
-        setStage("verify");
-        setCooldown(RESEND_COOLDOWN_SECONDS);
+      if (signIn.status === "complete") {
+        await finalizeSession();
         return;
       }
-    }
 
-    setStatusNotice(
-      "This account requires additional verification that isn't supported yet. Please contact support."
-    );
+      if (signIn.status === "needs_client_trust" || signIn.status === "needs_second_factor") {
+        const supportsEmailCode = signIn.supportedSecondFactors.some(
+          (factor) => factor.strategy === "email_code"
+        );
+        if (supportsEmailCode) {
+          const { error: sendError } = await signIn.mfa.sendEmailCode();
+          if (sendError) return;
+          setStage("verify");
+          setCooldown(RESEND_COOLDOWN_SECONDS);
+          return;
+        }
+      }
+
+      setStatusNotice(
+        "This account requires additional verification that isn't supported yet. Please contact support."
+      );
+    } catch {
+      setStatusNotice(UNEXPECTED_ERROR);
+    }
   };
 
   const handleVerify = async () => {
@@ -144,30 +202,176 @@ const SignIn = () => {
     setCodeError(undefined);
     setStatusNotice(undefined);
 
-    const { error } = await signIn.mfa.verifyEmailCode({ code: code.trim() });
-    if (error) return;
+    try {
+      const { error } = await signIn.mfa.verifyEmailCode({ code: code.trim() });
+      if (error) return;
 
-    if (signIn.status === "complete") {
-      await finalizeSession();
-      return;
+      if (signIn.status === "complete") {
+        await finalizeSession();
+        return;
+      }
+
+      setStatusNotice(
+        "This account requires additional verification that isn't supported yet. Please contact support."
+      );
+    } catch {
+      setStatusNotice(UNEXPECTED_ERROR);
     }
-
-    setStatusNotice(
-      "This account requires additional verification that isn't supported yet. Please contact support."
-    );
   };
 
   const handleResend = async () => {
     if (!signIn || cooldown > 0 || isSubmitting) return;
-    const { error } = await signIn.mfa.sendEmailCode();
-    if (!error) {
+    try {
+      const { error } = await signIn.mfa.sendEmailCode();
+      if (!error) {
+        setCooldown(RESEND_COOLDOWN_SECONDS);
+      }
+    } catch {
+      setStatusNotice(UNEXPECTED_ERROR);
+    }
+  };
+
+  /**
+   * Password reset, per Clerk's flow: seed the attempt with an identifier,
+   * send a code, verify it (status becomes `needs_new_password`), then submit
+   * the new password and finalize.
+   */
+  const handleForgotPassword = async () => {
+    if (!signIn || isSubmitting) return;
+
+    const email = identifier.trim();
+    if (!email || !EMAIL_REGEX.test(email)) {
+      setLocalErrors((prev) => ({
+        ...prev,
+        identifier: "Enter your email first, then tap Forgot password",
+      }));
+      return;
+    }
+
+    setStatusNotice(undefined);
+    setLocalErrors({});
+
+    try {
+      const { error: createError } = await signIn.create({ identifier: email });
+      if (createError) return;
+
+      const { error } = await signIn.resetPasswordEmailCode.sendCode();
+      if (error) return;
+
+      setCode("");
+      setCodeError(undefined);
+      setStage("reset-code");
       setCooldown(RESEND_COOLDOWN_SECONDS);
+    } catch {
+      setStatusNotice(UNEXPECTED_ERROR);
+    }
+  };
+
+  const handleVerifyResetCode = async () => {
+    if (!signIn || isSubmitting) return;
+    if (!code.trim()) {
+      setCodeError("Enter the 6-digit code");
+      return;
+    }
+    setCodeError(undefined);
+    setStatusNotice(undefined);
+
+    try {
+      const { error } = await signIn.resetPasswordEmailCode.verifyCode({
+        code: code.trim(),
+      });
+      if (error) return;
+
+      setNewPassword("");
+      setNewPasswordError(undefined);
+      setStage("reset-password");
+    } catch {
+      setStatusNotice(UNEXPECTED_ERROR);
+    }
+  };
+
+  const handleSubmitNewPassword = async () => {
+    if (!signIn || isSubmitting) return;
+    if (newPassword.length < MIN_PASSWORD_LENGTH) {
+      setNewPasswordError(`Use at least ${MIN_PASSWORD_LENGTH} characters`);
+      return;
+    }
+    setNewPasswordError(undefined);
+    setStatusNotice(undefined);
+
+    try {
+      const { error } = await signIn.resetPasswordEmailCode.submitPassword({
+        password: newPassword,
+      });
+      if (error) return;
+
+      if (signIn.status === "complete") {
+        posthog.capture("password_reset_completed");
+        await finalizeSession();
+        return;
+      }
+
+      setStatusNotice(
+        "Your password was updated but sign-in needs another step. Please sign in again."
+      );
+    } catch {
+      setStatusNotice(UNEXPECTED_ERROR);
+    }
+  };
+
+  const handleResendResetCode = async () => {
+    if (!signIn || cooldown > 0 || isSubmitting) return;
+    try {
+      const { error } = await signIn.resetPasswordEmailCode.sendCode();
+      if (!error) setCooldown(RESEND_COOLDOWN_SECONDS);
+    } catch {
+      setStatusNotice(UNEXPECTED_ERROR);
+    }
+  };
+
+  /**
+   * Uses the Core 3 SSO hook, which opens the browser session and activates the
+   * resulting session itself — so there is no setActive call here.
+   */
+  const handleGoogleSignIn = async () => {
+    if (isSocialBusy || isSubmitting) return;
+    setIsSocialBusy(true);
+    setStatusNotice(undefined);
+
+    try {
+      const { createdSessionId, authSessionResult } = await startSSOFlow({
+        strategy: "oauth_google",
+      });
+
+      if (createdSessionId) {
+        posthog.capture("sign_in_completed", {
+          authentication_method: "oauth_google",
+        });
+        router.replace("/(tabs)");
+        return;
+      }
+
+      // A successful browser round-trip without a new session means Clerk
+      // reactivated an existing one. The tabs layout redirects straight back
+      // here if that turns out not to have happened.
+      if (authSessionResult?.type === "success") {
+        router.replace("/(tabs)");
+        return;
+      }
+
+      // Anything else is the user dismissing the browser — not an error.
+    } catch (error) {
+      setStatusNotice(describeError(error));
+    } finally {
+      setIsSocialBusy(false);
     }
   };
 
   const handleUseDifferentAccount = async () => {
     try {
       await signIn?.reset();
+    } catch {
+      // Resetting is best-effort; the local form is cleared either way.
     } finally {
       setStage("form");
       setCode("");
@@ -179,15 +383,18 @@ const SignIn = () => {
 
   return (
     <SafeAreaView className="auth-safe-area">
-      <KeyboardAvoidingView
-        className="flex-1"
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
+      {/* `padding` on Android too, not just iOS. `edgeToEdgeEnabled` adds
+          windowTranslucentStatus, which Expo documents as breaking the default
+          `resize` keyboard mode — leaving `behavior` undefined there made this
+          a no-op and let the keyboard sit over the password field. */}
+      <KeyboardAvoidingView className="flex-1" behavior="padding">
         <ScrollView
           className="auth-scroll"
           contentContainerClassName="auth-content"
           keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
+          // Not "on-drag": scrolling to reach a field below the fold should not
+          // close the keyboard the user is mid-way through typing with.
+          keyboardDismissMode="none"
           showsVerticalScrollIndicator={false}
         >
           <View className="auth-brand-block">
@@ -202,25 +409,98 @@ const SignIn = () => {
                 <Text className="auth-wordmark-sub">Smart Billing</Text>
               </View>
             </View>
-            {stage === "form" ? (
+            {stage === "form" && (
               <>
                 <Text className="auth-title">Welcome back</Text>
                 <Text className="auth-subtitle">
                   Sign in to continue managing your subscriptions
                 </Text>
               </>
-            ) : (
+            )}
+            {(stage === "verify" || stage === "reset-code") && (
               <>
-                <Text className="auth-title">Verify it&apos;s you</Text>
+                <Text className="auth-title">
+                  {stage === "reset-code"
+                    ? "Reset your password"
+                    : "Verify it's you"}
+                </Text>
                 <Text className="auth-subtitle">
                   Enter the 6-digit code we sent to {identifier}
+                </Text>
+              </>
+            )}
+            {stage === "reset-password" && (
+              <>
+                <Text className="auth-title">Choose a new password</Text>
+                <Text className="auth-subtitle">
+                  This replaces the password on {identifier}
                 </Text>
               </>
             )}
           </View>
 
           <View className="auth-card">
-            {stage === "form" ? (
+            {stage === "reset-password" ? (
+              <>
+                <View className="auth-form">
+                  {(globalError || statusNotice) && (
+                    <Text className="auth-error text-center">
+                      {globalError
+                        ? (globalError.longMessage ?? globalError.message)
+                        : statusNotice}
+                    </Text>
+                  )}
+
+                  <View className="auth-field">
+                    <View className="flex-row items-center justify-between">
+                      <Text className="auth-label">New password</Text>
+                      <Pressable onPress={() => setShowPassword((prev) => !prev)}>
+                        <Text className="auth-link text-xs">
+                          {showPassword ? "Hide" : "Show"}
+                        </Text>
+                      </Pressable>
+                    </View>
+                    <TextInput
+                      className={clsx(
+                        "auth-input",
+                        newPasswordError && "auth-input-error"
+                      )}
+                      placeholder="Create a new password"
+                      placeholderTextColor={colors.mutedForeground}
+                      autoCapitalize="none"
+                      autoComplete="password-new"
+                      secureTextEntry={!showPassword}
+                      value={newPassword}
+                      onChangeText={(text) => {
+                        setNewPassword(text);
+                        if (newPasswordError) setNewPasswordError(undefined);
+                      }}
+                    />
+                    {newPasswordError && (
+                      <Text className="auth-error">{newPasswordError}</Text>
+                    )}
+                  </View>
+
+                  <Pressable
+                    className={clsx("auth-button", isSubmitting && "auth-button-disabled")}
+                    onPress={handleSubmitNewPassword}
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <ActivityIndicator color={colors.primary} />
+                    ) : (
+                      <Text className="auth-button-text">Update password</Text>
+                    )}
+                  </Pressable>
+                </View>
+
+                <View className="auth-link-row">
+                  <Pressable onPress={handleUseDifferentAccount}>
+                    <Text className="auth-link">Back to sign in</Text>
+                  </Pressable>
+                </View>
+              </>
+            ) : stage === "form" ? (
               <>
                 <View className="auth-form">
                   {(globalError || statusNotice) && (
@@ -289,6 +569,38 @@ const SignIn = () => {
                       <Text className="auth-button-text">Sign in</Text>
                     )}
                   </Pressable>
+
+                  <Pressable
+                    onPress={handleForgotPassword}
+                    disabled={isSubmitting}
+                    accessibilityRole="button"
+                  >
+                    <Text className="auth-link text-center text-sm">
+                      Forgot password?
+                    </Text>
+                  </Pressable>
+
+                  <View className="auth-divider-row">
+                    <View className="auth-divider-line" />
+                    <Text className="auth-divider-text">or</Text>
+                    <View className="auth-divider-line" />
+                  </View>
+
+                  <Pressable
+                    className={clsx(
+                      "auth-social-button",
+                      isSocialBusy && "auth-button-disabled"
+                    )}
+                    onPress={handleGoogleSignIn}
+                    disabled={isSocialBusy || isSubmitting}
+                    accessibilityRole="button"
+                  >
+                    {isSocialBusy ? (
+                      <ActivityIndicator color={colors.primary} />
+                    ) : (
+                      <Text className="auth-social-text">Continue with Google</Text>
+                    )}
+                  </Pressable>
                 </View>
 
                 <View className="auth-link-row">
@@ -332,19 +644,25 @@ const SignIn = () => {
 
                   <Pressable
                     className={clsx("auth-button", isSubmitting && "auth-button-disabled")}
-                    onPress={handleVerify}
+                    onPress={
+                      stage === "reset-code" ? handleVerifyResetCode : handleVerify
+                    }
                     disabled={isSubmitting}
                   >
                     {isSubmitting ? (
                       <ActivityIndicator color={colors.primary} />
                     ) : (
-                      <Text className="auth-button-text">Verify</Text>
+                      <Text className="auth-button-text">
+                        {stage === "reset-code" ? "Continue" : "Verify"}
+                      </Text>
                     )}
                   </Pressable>
 
                   <Pressable
                     className="auth-secondary-button"
-                    onPress={handleResend}
+                    onPress={
+                      stage === "reset-code" ? handleResendResetCode : handleResend
+                    }
                     disabled={cooldown > 0 || isSubmitting}
                   >
                     <Text className="auth-secondary-button-text">

@@ -3,5 +3,8 @@
     "expo@claude-plugins-official": true,
     "playwright@claude-plugins-official": true,
     "chrome-devtools-mcp@claude-plugins-official": true
+  },
+  "worktree": {
+    "bgIsolation": "none"
   }
 }

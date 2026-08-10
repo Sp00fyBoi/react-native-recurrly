@@ -9,7 +9,6 @@ import {
   ActivityIndicator,
   Image,
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -24,6 +23,8 @@ const SafeAreaView = styled(RNSafeAreaView);
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 8;
 const RESEND_COOLDOWN_SECONDS = 30;
+const UNEXPECTED_ERROR =
+  "Something went wrong. Check your connection and try again.";
 
 type Stage = "form" | "verify";
 
@@ -86,18 +87,31 @@ const SignUp = () => {
   const handleSignUp = async () => {
     if (!signUp || isSubmitting) return;
     if (!validateForm()) return;
+    setStatusNotice(undefined);
 
-    const { error } = await signUp.password({
-      emailAddress: emailAddress.trim(),
-      password,
-    });
-    if (error) return;
+    try {
+      const { error } = await signUp.password({
+        emailAddress: emailAddress.trim(),
+        password,
+      });
+      if (error) return;
 
-    const { error: sendError } = await signUp.verifications.sendEmailCode();
-    if (sendError) return;
+      const { error: sendError } = await signUp.verifications.sendEmailCode();
+      if (sendError) {
+        // The account now exists but no code went out, so move to the verify
+        // stage anyway — that screen owns the resend action.
+        setStage("verify");
+        setStatusNotice(
+          "We couldn't send your code. Use Resend code to try again."
+        );
+        return;
+      }
 
-    setStage("verify");
-    setCooldown(RESEND_COOLDOWN_SECONDS);
+      setStage("verify");
+      setCooldown(RESEND_COOLDOWN_SECONDS);
+    } catch {
+      setStatusNotice(UNEXPECTED_ERROR);
+    }
   };
 
   const handleVerify = async () => {
@@ -109,54 +123,64 @@ const SignUp = () => {
     setCodeError(undefined);
     setStatusNotice(undefined);
 
-    const { error } = await signUp.verifications.verifyEmailCode({
-      code: code.trim(),
-    });
-    if (error) return;
-
-    if (signUp.status === "complete") {
-      await signUp.finalize({
-        navigate: ({ session }) => {
-          if (session?.currentTask || !session?.user) {
-            setStatusNotice(
-              "Your account needs additional setup that isn't supported yet. Please contact support."
-            );
-            return;
-          }
-          posthog.identify(session.user.id, {
-            ...(session.user.primaryEmailAddress?.emailAddress
-              ? { email: session.user.primaryEmailAddress.emailAddress }
-              : {}),
-            ...(session.user.fullName ?? session.user.firstName
-              ? { name: session.user.fullName ?? session.user.firstName }
-              : {}),
-          });
-          posthog.capture("sign_up_completed", {
-            sign_up_method: "email_password",
-          });
-          router.replace("/(tabs)");
-        },
+    try {
+      const { error } = await signUp.verifications.verifyEmailCode({
+        code: code.trim(),
       });
-      return;
-    }
+      if (error) return;
 
-    setStatusNotice(
-      "We couldn't complete your sign-up automatically. Please contact support."
-    );
+      if (signUp.status === "complete") {
+        await signUp.finalize({
+          navigate: ({ session }) => {
+            if (session?.currentTask || !session?.user) {
+              setStatusNotice(
+                "Your account needs additional setup that isn't supported yet. Please contact support."
+              );
+              return;
+            }
+            posthog.identify(session.user.id, {
+              ...(session.user.primaryEmailAddress?.emailAddress
+                ? { email: session.user.primaryEmailAddress.emailAddress }
+                : {}),
+              ...(session.user.fullName ?? session.user.firstName
+                ? { name: session.user.fullName ?? session.user.firstName }
+                : {}),
+            });
+            posthog.capture("sign_up_completed", {
+              sign_up_method: "email_password",
+            });
+            router.replace("/(tabs)");
+          },
+        });
+        return;
+      }
+
+      setStatusNotice(
+        "We couldn't complete your sign-up automatically. Please contact support."
+      );
+    } catch {
+      setStatusNotice(UNEXPECTED_ERROR);
+    }
   };
 
   const handleResend = async () => {
     if (!signUp || cooldown > 0 || isSubmitting) return;
-    const { error } = await signUp.verifications.sendEmailCode();
-    if (!error) {
-      posthog.capture("sign_up_verification_code_resent");
-      setCooldown(RESEND_COOLDOWN_SECONDS);
+    try {
+      const { error } = await signUp.verifications.sendEmailCode();
+      if (!error) {
+        posthog.capture("sign_up_verification_code_resent");
+        setCooldown(RESEND_COOLDOWN_SECONDS);
+      }
+    } catch {
+      setStatusNotice(UNEXPECTED_ERROR);
     }
   };
 
   const handleUseDifferentEmail = async () => {
     try {
       await signUp?.reset();
+    } catch {
+      // Resetting is best-effort; the local form is cleared either way.
     } finally {
       setStage("form");
       setCode("");
@@ -168,15 +192,18 @@ const SignUp = () => {
 
   return (
     <SafeAreaView className="auth-safe-area">
-      <KeyboardAvoidingView
-        className="flex-1"
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
+      {/* `padding` on Android too, not just iOS. `edgeToEdgeEnabled` adds
+          windowTranslucentStatus, which Expo documents as breaking the default
+          `resize` keyboard mode — leaving `behavior` undefined there made this
+          a no-op and let the keyboard sit over the confirm-password field. */}
+      <KeyboardAvoidingView className="flex-1" behavior="padding">
         <ScrollView
           className="auth-scroll"
           contentContainerClassName="auth-content"
           keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
+          // Not "on-drag": scrolling to reach a field below the fold should not
+          // close the keyboard the user is mid-way through typing with.
+          keyboardDismissMode="none"
           showsVerticalScrollIndicator={false}
         >
           <View className="auth-brand-block">
@@ -212,9 +239,11 @@ const SignUp = () => {
             {stage === "form" ? (
               <>
                 <View className="auth-form">
-                  {globalError && (
+                  {(globalError || statusNotice) && (
                     <Text className="auth-error text-center">
-                      {globalError.longMessage ?? globalError.message}
+                      {globalError
+                        ? (globalError.longMessage ?? globalError.message)
+                        : statusNotice}
                     </Text>
                   )}
 

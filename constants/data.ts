@@ -7,97 +7,77 @@ export const tabs: AppTab[] = [
     { name: "settings", title: "Settings", icon: icons.setting },
 ];
 
-export const HOME_BALANCE = {
-    amount: 2489.48,
-    nextRenewalDate: "2026-03-18T09:00:00.000Z",
+/**
+ * Sample rows inserted once into a brand-new account so the dashboard isn't
+ * empty on first launch. Renewal dates are relative to insert time so the
+ * derived "Upcoming" list always has something in range.
+ *
+ * Delete this (and `lib/repositories/seed-demo-data.ts`) once real data lands.
+ */
+const daysFromNow = (days: number) =>
+    new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+
+const monthsAgo = (months: number) => {
+    const date = new Date();
+    date.setMonth(date.getMonth() - months);
+    return date.toISOString();
 };
 
-export const UPCOMING_SUBSCRIPTIONS: UpcomingSubscription[] = [
+export const DEMO_SUBSCRIPTIONS: CreateSubscriptionInput[] = [
     {
-        id: "spotify",
-        icon: icons.spotify,
-        name: "Spotify",
-        price: 5.99,
-        currency: "USD",
-        daysLeft: 2,
-    },
-    {
-        id: "notion",
-        icon: icons.notion,
-        name: "Notion",
-        price: 12.0,
-        currency: "USD",
-        daysLeft: 4,
-    },
-    {
-        id: "figma",
-        icon: icons.figma,
-        name: "Figma",
-        price: 15.0,
-        currency: "USD",
-        daysLeft: 6,
-    },
-];
-
-export const HOME_SUBSCRIPTIONS: Subscription[] = [
-    {
-        id: "adobe-creative-cloud",
-        icon: icons.adobe,
         name: "Adobe Creative Cloud",
+        iconKey: "adobe",
         plan: "Teams Plan",
         category: "Design",
         paymentMethod: "Visa ending in 8530",
         status: "active",
-        startDate: "2025-03-20T10:00:00.000Z",
-        price: 77.49,
-        currency: "USD",
+        startDate: monthsAgo(17),
+        price: 4699.0,
+        currency: "INR",
         billing: "Monthly",
-        renewalDate: "2026-03-20T10:00:00.000Z",
+        renewalDate: daysFromNow(11),
         color: "#f5c542",
     },
     {
-        id: "github-pro",
-        icon: icons.github,
         name: "GitHub Pro",
+        iconKey: "github",
         plan: "Developer",
         category: "Developer Tools",
         paymentMethod: "Mastercard ending in 2408",
         status: "active",
-        startDate: "2024-11-24T10:00:00.000Z",
-        price: 9.99,
-        currency: "USD",
+        startDate: monthsAgo(21),
+        price: 349.0,
+        currency: "INR",
         billing: "Monthly",
-        renewalDate: "2026-03-24T10:00:00.000Z",
+        renewalDate: daysFromNow(15),
         color: "#e8def8",
     },
     {
-        id: "claude-pro",
-        icon: icons.claude,
         name: "Claude Pro",
+        iconKey: "claude",
         plan: "Pro Plan",
         category: "AI Tools",
         paymentMethod: "Amex ending in 1010",
         status: "paused",
-        startDate: "2025-06-27T10:00:00.000Z",
-        price: 20.0,
-        currency: "USD",
+        startDate: monthsAgo(14),
+        price: 1650.0,
+        currency: "INR",
         billing: "Monthly",
-        renewalDate: "2026-03-27T10:00:00.000Z",
+        renewalDate: daysFromNow(18),
         color: "#b8d4e3",
     },
     {
-        id: "canva-pro",
-        icon: icons.canva,
         name: "Canva Pro",
+        iconKey: "canva",
         plan: "Yearly Access",
         category: "Design",
         paymentMethod: "Visa ending in 7784",
-        status: "cancelled",
-        startDate: "2024-04-02T10:00:00.000Z",
-        price: 119.99,
-        currency: "USD",
+        status: "active",
+        startDate: monthsAgo(28),
+        price: 3999.0,
+        currency: "INR",
         billing: "Yearly",
-        renewalDate: "2026-04-02T10:00:00.000Z",
+        renewalDate: daysFromNow(24),
         color: "#b8e8d0",
     },
 ];

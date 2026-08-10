@@ -9,6 +9,10 @@ dist/
 web-build/
 expo-env.d.ts
 
+# Claude Code worktrees. Must stay ignored: Expo Router's file scan respects
+# .gitignore, so an untracked worktree here gets enrolled as real routes.
+.claude/worktrees/
+
 # Native
 .kotlin/
 *.orig.*
