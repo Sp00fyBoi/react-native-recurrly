@@ -9,6 +9,9 @@ const config = getDefaultConfig(__dirname);
 // `SQLite.openDatabaseAsync` fails on web.
 config.resolver.assetExts.push("wasm");
 
+// Dev server only — Metro doesn't serve the production static export, so this
+// middleware has no effect there. The equivalent headers for a hosted build
+// live in public/_headers (copied verbatim into the web export).
 config.server.enhanceMiddleware = (middleware) => {
   return (req, res, next) => {
     res.setHeader("Cross-Origin-Opener-Policy", "same-origin");

@@ -378,6 +378,8 @@ const SignIn = () => {
       setCodeError(undefined);
       setStatusNotice(undefined);
       setCooldown(0);
+      setPassword("");
+      setShowPassword(false);
       setNewPassword("");
       setNewPasswordError(undefined);
     }

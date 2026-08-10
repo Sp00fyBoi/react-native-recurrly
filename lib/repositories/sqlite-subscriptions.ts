@@ -4,6 +4,22 @@ import { toSubscription, type SubscriptionRow } from "@/lib/db/schema";
 
 import type { SubscriptionRepository } from "./types";
 
+// The database is a single shared connection (see getDatabase). expo-sqlite's
+// own docs warn that statements issued outside a transaction can interleave
+// with one still in progress, and withExclusiveTransactionAsync — which would
+// otherwise serialize writes at the SQLite level — isn't supported on web. A
+// promise-chain mutex serializes every write the same way on all platforms.
+let writeQueue: Promise<void> = Promise.resolve();
+
+const serialized = <T>(task: () => Promise<T>): Promise<T> => {
+  const result = writeQueue.then(task);
+  writeQueue = result.then(
+    () => undefined,
+    () => undefined,
+  );
+  return result;
+};
+
 const SELECT_COLUMNS = `
   id, user_id, name, icon_key, plan, category, payment_method, status,
   start_date, price, currency, billing, renewal_date, color,
@@ -42,89 +58,95 @@ export const createSqliteSubscriptionRepository = (): SubscriptionRepository => 
   },
 
   async create(userId, input) {
-    const db = await getDatabase();
-    const now = new Date().toISOString();
-    const id = createId();
+    return serialized(async () => {
+      const db = await getDatabase();
+      const now = new Date().toISOString();
+      const id = createId();
 
-    // Transacted so a missing read-back rolls the insert back too, instead of
-    // leaving an orphaned row the caller was told didn't get created.
-    let row: SubscriptionRow | null = null;
-    await db.withTransactionAsync(async () => {
-      await db.runAsync(
-        `INSERT INTO subscriptions (
-           id, user_id, name, icon_key, plan, category, payment_method, status,
-           start_date, price, currency, billing, renewal_date, color,
-           created_at, updated_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          id,
-          userId,
-          input.name,
-          input.iconKey,
-          input.plan ?? null,
-          input.category ?? null,
-          input.paymentMethod ?? null,
-          input.status ?? "active",
-          input.startDate ?? null,
-          input.price,
-          input.currency,
-          input.billing,
-          input.renewalDate ?? null,
-          input.color ?? null,
-          now,
-          now,
-        ],
-      );
+      // Transacted so a missing read-back rolls the insert back too, instead
+      // of leaving an orphaned row the caller was told didn't get created.
+      let row: SubscriptionRow | null = null;
+      await db.withTransactionAsync(async () => {
+        await db.runAsync(
+          `INSERT INTO subscriptions (
+             id, user_id, name, icon_key, plan, category, payment_method, status,
+             start_date, price, currency, billing, renewal_date, color,
+             created_at, updated_at
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            id,
+            userId,
+            input.name,
+            input.iconKey,
+            input.plan ?? null,
+            input.category ?? null,
+            input.paymentMethod ?? null,
+            input.status ?? "active",
+            input.startDate ?? null,
+            input.price,
+            input.currency,
+            input.billing,
+            input.renewalDate ?? null,
+            input.color ?? null,
+            now,
+            now,
+          ],
+        );
 
-      row = await db.getFirstAsync<SubscriptionRow>(
+        row = await db.getFirstAsync<SubscriptionRow>(
+          `SELECT ${SELECT_COLUMNS} FROM subscriptions WHERE id = ? AND user_id = ?`,
+          [id, userId],
+        );
+
+        if (!row) {
+          throw new Error("Subscription was inserted but could not be read back");
+        }
+      });
+
+      return toSubscription(row!);
+    });
+  },
+
+  async update(userId, id, patch) {
+    return serialized(async () => {
+      const db = await getDatabase();
+
+      const assignments: string[] = [];
+      const values: (string | number | null)[] = [];
+
+      for (const [key, column] of Object.entries(PATCHABLE_COLUMNS)) {
+        const value = patch[key as keyof UpdateSubscriptionPatch];
+        if (value === undefined) continue;
+        assignments.push(`${column} = ?`);
+        values.push(value);
+      }
+
+      if (assignments.length > 0) {
+        assignments.push("updated_at = ?");
+        values.push(new Date().toISOString());
+
+        await db.runAsync(
+          `UPDATE subscriptions SET ${assignments.join(", ")} WHERE id = ? AND user_id = ?`,
+          [...values, id, userId],
+        );
+      }
+
+      const row = await db.getFirstAsync<SubscriptionRow>(
         `SELECT ${SELECT_COLUMNS} FROM subscriptions WHERE id = ? AND user_id = ?`,
         [id, userId],
       );
 
-      if (!row) {
-        throw new Error("Subscription was inserted but could not be read back");
-      }
+      return row ? toSubscription(row) : undefined;
     });
-
-    return toSubscription(row!);
-  },
-
-  async update(userId, id, patch) {
-    const db = await getDatabase();
-
-    const assignments: string[] = [];
-    const values: (string | number | null)[] = [];
-
-    for (const [key, column] of Object.entries(PATCHABLE_COLUMNS)) {
-      const value = patch[key as keyof UpdateSubscriptionPatch];
-      if (value === undefined) continue;
-      assignments.push(`${column} = ?`);
-      values.push(value);
-    }
-
-    if (assignments.length > 0) {
-      assignments.push("updated_at = ?");
-      values.push(new Date().toISOString());
-
-      await db.runAsync(
-        `UPDATE subscriptions SET ${assignments.join(", ")} WHERE id = ? AND user_id = ?`,
-        [...values, id, userId],
-      );
-    }
-
-    const row = await db.getFirstAsync<SubscriptionRow>(
-      `SELECT ${SELECT_COLUMNS} FROM subscriptions WHERE id = ? AND user_id = ?`,
-      [id, userId],
-    );
-
-    return row ? toSubscription(row) : undefined;
   },
 
   async remove(userId, id) {
-    const db = await getDatabase();
-    await db.runAsync(
-      "DELETE FROM subscriptions WHERE id = ? AND user_id = ?",
-      [id, userId],
-    );
+    return serialized(async () => {
+      const db = await getDatabase();
+      await db.runAsync(
+        "DELETE FROM subscriptions WHERE id = ? AND user_id = ?",
+        [id, userId],
+      );
+    });
   },
 });

@@ -31,7 +31,7 @@ A full-stack subscription management mobile application designed to help users t
 
 ### Data & Persistence
 
-- **[expo-sqlite](https://docs.expo.dev/versions/latest/sdk/sqlite/)** — On-device SQLite database storing subscriptions per Clerk user id. No backend server exists yet; the schema is written to migrate cleanly to Supabase/Prisma later.
+- **[expo-sqlite](https://docs.expo.dev/versions/v54.0.0/sdk/sqlite/)** (`~16.0.10`) — On-device SQLite database storing subscriptions per Clerk user id. No backend server exists yet; the schema is written to migrate cleanly to Supabase/Prisma later.
 
 ### Infrastructure & Tools
 

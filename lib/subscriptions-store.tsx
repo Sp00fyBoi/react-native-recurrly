@@ -119,10 +119,9 @@ export const SubscriptionsProvider = ({
         isMountedRef.current && activeUserRef.current === requestUserId;
       try {
         const created = await subscriptionRepository.create(userId, input);
-        if (isForActiveUser()) {
-          setSubscriptions((current) => [created, ...current]);
-          setError(undefined);
-        }
+        if (!isForActiveUser()) return undefined;
+        setSubscriptions((current) => [created, ...current]);
+        setError(undefined);
         return created;
       } catch (err) {
         console.warn("Failed to create subscription", err);
@@ -142,12 +141,11 @@ export const SubscriptionsProvider = ({
       try {
         const updated = await subscriptionRepository.update(userId, id, patch);
         if (!updated) return false;
-        if (isForActiveUser()) {
-          setSubscriptions((current) =>
-            current.map((item) => (item.id === id ? updated : item)),
-          );
-          setError(undefined);
-        }
+        if (!isForActiveUser()) return false;
+        setSubscriptions((current) =>
+          current.map((item) => (item.id === id ? updated : item)),
+        );
+        setError(undefined);
         return true;
       } catch (err) {
         console.warn("Failed to update subscription", err);
@@ -166,12 +164,11 @@ export const SubscriptionsProvider = ({
         isMountedRef.current && activeUserRef.current === requestUserId;
       try {
         await subscriptionRepository.remove(userId, id);
-        if (isForActiveUser()) {
-          setSubscriptions((current) =>
-            current.filter((item) => item.id !== id),
-          );
-          setError(undefined);
-        }
+        if (!isForActiveUser()) return false;
+        setSubscriptions((current) =>
+          current.filter((item) => item.id !== id),
+        );
+        setError(undefined);
         return true;
       } catch (err) {
         console.warn("Failed to remove subscription", err);

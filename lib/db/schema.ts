@@ -1,7 +1,7 @@
 import { icons, type IconKey } from "@/constants/icons";
 
 export const DATABASE_NAME = "recurrly.db";
-export const DATABASE_VERSION = 1;
+export const DATABASE_VERSION = 2;
 
 /**
  * Columns are snake_case and nullability mirrors the Postgres table this
@@ -38,6 +38,13 @@ CREATE TABLE IF NOT EXISTS app_meta (
   key TEXT PRIMARY KEY NOT NULL,
   value TEXT NOT NULL
 );
+`;
+
+// Databases created before the composite index was folded into MIGRATION_V1
+// are stuck on the old single-column index; drop it and add the composite one.
+export const MIGRATION_V2 = `
+DROP INDEX IF EXISTS subscriptions_user_id_idx;
+CREATE INDEX IF NOT EXISTS subscriptions_user_created_idx ON subscriptions (user_id, created_at);
 `;
 
 export type SubscriptionRow = {

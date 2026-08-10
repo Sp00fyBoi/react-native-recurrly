@@ -1,6 +1,11 @@
 import * as SQLite from "expo-sqlite";
 
-import { DATABASE_NAME, DATABASE_VERSION, MIGRATION_V1 } from "./schema";
+import {
+  DATABASE_NAME,
+  DATABASE_VERSION,
+  MIGRATION_V1,
+  MIGRATION_V2,
+} from "./schema";
 
 let databasePromise: Promise<SQLite.SQLiteDatabase> | undefined;
 
@@ -18,8 +23,11 @@ const migrate = async (db: SQLite.SQLiteDatabase) => {
     if (currentVersion === 0) {
       await txn.execAsync(MIGRATION_V1);
     }
+    if (currentVersion <= 1) {
+      await txn.execAsync(MIGRATION_V2);
+    }
 
-    // Future migrations append here as `if (currentVersion === 1) { … }` blocks
+    // Future migrations append here as `if (currentVersion <= N) { … }` blocks
     // and bump DATABASE_VERSION in schema.ts.
 
     await txn.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);

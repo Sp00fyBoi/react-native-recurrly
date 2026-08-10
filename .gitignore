@@ -50,3 +50,4 @@ app-example
 /ios
 /android
 modal-contrast-check.png
+*.log
