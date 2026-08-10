@@ -29,7 +29,10 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   updated_at TEXT NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS subscriptions_user_id_idx ON subscriptions (user_id);
+-- Composite so the list query's WHERE user_id = ? and ORDER BY created_at
+-- both use the same index; (user_id) alone is a leftmost prefix of this so
+-- a separate single-column index would be redundant.
+CREATE INDEX IF NOT EXISTS subscriptions_user_created_idx ON subscriptions (user_id, created_at);
 
 CREATE TABLE IF NOT EXISTS app_meta (
   key TEXT PRIMARY KEY NOT NULL,
@@ -58,7 +61,8 @@ export type SubscriptionRow = {
 
 const FALLBACK_ICON_KEY: IconKey = "wallet";
 
-const isIconKey = (value: string): value is IconKey => value in icons;
+const isIconKey = (value: string): value is IconKey =>
+  Object.hasOwn(icons, value);
 
 /** Rows store an icon *key*; the bundled asset is resolved on the way out. */
 export const toSubscription = (row: SubscriptionRow): Subscription => {

@@ -23,7 +23,11 @@ const monthsAgo = (months: number) => {
     return date.toISOString();
 };
 
-export const DEMO_SUBSCRIPTIONS: CreateSubscriptionInput[] = [
+/** Built at insertion time so `daysFromNow`/`monthsAgo` are relative to when
+ * a given account is actually seeded, not to whenever this module first
+ * loaded (which, since it's a module-level import, could be an earlier app
+ * session still resident in memory). */
+export const buildDemoSubscriptions = (): CreateSubscriptionInput[] => [
     {
         name: "Adobe Creative Cloud",
         iconKey: "adobe",

@@ -12,13 +12,13 @@ A full-stack subscription management mobile application designed to help users t
 
 - **Subscription Dashboard** — View and manage recurring expenses from a centralized dashboard.
 - **Active & Inactive Tracking** — Keep track of active subscriptions and identify services that are no longer being used.
-- **Scheduled Email Reminders** — Receive reminders before upcoming subscription renewals.
 - **Secure Authentication** — User authentication and account management powered by Clerk.
 - **Native Navigation** — Smooth navigation designed for both Android and iOS.
-- **Full-Stack Data Persistence** — Subscription and user data stored through a Node.js/Express backend with MongoDB.
-- **Monetization Ready** — Architecture prepared for billing and payment functionality.
+- **On-Device Data Persistence** — Subscriptions are stored locally per-account in a SQLite database (`expo-sqlite`), scoped by Clerk user id.
 - **Product Analytics** — User behavior and application analytics powered by PostHog.
 - **Reusable Architecture** — Organized components and services designed with maintainability and reusability in mind.
+
+**Roadmap** — not yet implemented: scheduled email renewal reminders, a Supabase/Prisma backend to replace on-device SQLite, and monetization/billing.
 
 ## ⚙️ Tech Stack
 
@@ -29,11 +29,9 @@ A full-stack subscription management mobile application designed to help users t
 - **[TypeScript](https://www.typescriptlang.org/)** — Provides static typing and improved maintainability across the project.
 - **[NativeWind](https://www.nativewind.dev/)** — Tailwind CSS-based styling for React Native.
 
-### Backend & Database
+### Data & Persistence
 
-- **[Node.js](https://nodejs.org/)** — JavaScript runtime used for the backend service.
-- **[Express](https://expressjs.com/)** — Backend framework for API routing and middleware.
-- **[MongoDB](https://www.mongodb.com/)** — NoSQL database used for storing users and subscription data.
+- **[expo-sqlite](https://docs.expo.dev/versions/latest/sdk/sqlite/)** — On-device SQLite database storing subscriptions per Clerk user id. No backend server exists yet; the schema is written to migrate cleanly to Supabase/Prisma later.
 
 ### Infrastructure & Tools
 

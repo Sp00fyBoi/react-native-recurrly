@@ -627,7 +627,7 @@
   }
 
   .chart-y-label {
-    @apply text-xs font-sans-medium text-black/40;
+    @apply text-xs font-sans-medium text-muted-foreground;
   }
 
   .chart-area {
@@ -663,7 +663,7 @@
   }
 
   .chart-day {
-    @apply flex-1 text-center text-xs font-sans-medium text-black/50;
+    @apply flex-1 text-center text-xs font-sans-medium text-muted-foreground;
   }
 
   .chart-tooltip {

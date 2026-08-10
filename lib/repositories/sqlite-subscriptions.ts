@@ -46,42 +46,47 @@ export const createSqliteSubscriptionRepository = (): SubscriptionRepository => 
     const now = new Date().toISOString();
     const id = createId();
 
-    await db.runAsync(
-      `INSERT INTO subscriptions (
-         id, user_id, name, icon_key, plan, category, payment_method, status,
-         start_date, price, currency, billing, renewal_date, color,
-         created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        id,
-        userId,
-        input.name,
-        input.iconKey,
-        input.plan ?? null,
-        input.category ?? null,
-        input.paymentMethod ?? null,
-        input.status ?? "active",
-        input.startDate ?? null,
-        input.price,
-        input.currency,
-        input.billing,
-        input.renewalDate ?? null,
-        input.color ?? null,
-        now,
-        now,
-      ],
-    );
+    // Transacted so a missing read-back rolls the insert back too, instead of
+    // leaving an orphaned row the caller was told didn't get created.
+    let row: SubscriptionRow | null = null;
+    await db.withTransactionAsync(async () => {
+      await db.runAsync(
+        `INSERT INTO subscriptions (
+           id, user_id, name, icon_key, plan, category, payment_method, status,
+           start_date, price, currency, billing, renewal_date, color,
+           created_at, updated_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          id,
+          userId,
+          input.name,
+          input.iconKey,
+          input.plan ?? null,
+          input.category ?? null,
+          input.paymentMethod ?? null,
+          input.status ?? "active",
+          input.startDate ?? null,
+          input.price,
+          input.currency,
+          input.billing,
+          input.renewalDate ?? null,
+          input.color ?? null,
+          now,
+          now,
+        ],
+      );
 
-    const row = await db.getFirstAsync<SubscriptionRow>(
-      `SELECT ${SELECT_COLUMNS} FROM subscriptions WHERE id = ?`,
-      id,
-    );
+      row = await db.getFirstAsync<SubscriptionRow>(
+        `SELECT ${SELECT_COLUMNS} FROM subscriptions WHERE id = ? AND user_id = ?`,
+        [id, userId],
+      );
 
-    if (!row) {
-      throw new Error("Subscription was inserted but could not be read back");
-    }
+      if (!row) {
+        throw new Error("Subscription was inserted but could not be read back");
+      }
+    });
 
-    return toSubscription(row);
+    return toSubscription(row!);
   },
 
   async update(userId, id, patch) {

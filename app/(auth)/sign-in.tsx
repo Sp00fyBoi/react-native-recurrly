@@ -378,6 +378,8 @@ const SignIn = () => {
       setCodeError(undefined);
       setStatusNotice(undefined);
       setCooldown(0);
+      setNewPassword("");
+      setNewPasswordError(undefined);
     }
   };
 

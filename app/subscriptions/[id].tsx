@@ -56,6 +56,17 @@ const SubscriptionDetails = () => {
 
   // Covers a stale deep link and the moment right after a delete.
   if (!subscription) {
+    // The row disappears from the store the instant the delete resolves, one
+    // render before `goBack()` actually navigates away — show the spinner
+    // through that gap instead of flashing "not found" first.
+    if (pending === "delete") {
+      return (
+        <SafeAreaView className="screen-centered">
+          <ActivityIndicator size="large" color={colors.accent} />
+        </SafeAreaView>
+      );
+    }
+
     return (
       <SafeAreaView className="screen-centered">
         <Text className="auth-title text-center">Subscription not found</Text>

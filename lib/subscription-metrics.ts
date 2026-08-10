@@ -125,11 +125,12 @@ export const selectDailySpend = (
   days = 7,
 ): DailySpend[] => {
   const today = dayjs().startOf("day");
+  const active = subscriptions.filter(isBilling);
 
   return Array.from({ length: days }, (_, offset) => {
     const day = today.add(offset, "day");
 
-    const total = subscriptions.filter(isBilling).reduce((sum, subscription) => {
+    const total = active.reduce((sum, subscription) => {
       if (!subscription.renewalDate) return sum;
       const renewal = dayjs(subscription.renewalDate);
       if (!renewal.isValid()) return sum;

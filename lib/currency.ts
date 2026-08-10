@@ -34,7 +34,7 @@ const SYMBOLS: Record<string, string> = {
   CAD: "C$",
 };
 
-const normalize = (currency?: string): string =>
+export const normalize = (currency?: string): string =>
   currency?.trim().toUpperCase() || DEFAULT_CURRENCY;
 
 /**
@@ -47,5 +47,10 @@ const normalize = (currency?: string): string =>
 export const toDefaultCurrency = (amount: number, currency?: string): number =>
   amount * (INR_PER_UNIT[normalize(currency)] ?? 1);
 
-export const currencySymbol = (currency?: string): string =>
-  SYMBOLS[normalize(currency)] ?? "";
+export const currencySymbol = (currency?: string): string => {
+  const normalized = normalize(currency);
+  // An unmapped code still needs to read unambiguously, so fall back to the
+  // code itself rather than an empty string that would silently drop it from
+  // the formatted amount.
+  return SYMBOLS[normalized] ?? normalized;
+};
