@@ -123,8 +123,8 @@ Verified against every navigation call in the app — only `router.replace("/(ta
 
 ## 3. 🔵 Missing & Unimplemented Features
 
-| # | Gap | Evidence |
-|---|---|---|
+| # | Gap & evidence |
+|---|---|
 | F1 | **No cancel / delete / edit subscription.** `onCancelPress` and `isCancelling` are declared props (`type.d.ts:35-36`) and `.sub-cancel`, `.sub-cancel-disabled`, `.sub-cancel-text` exist in `global.css:213-223` — but `SubscriptionCard.tsx` never renders the button. Fully-built UI contract with no implementation. |
 | F2 | **No backend at all.** Zero `fetch`/`axios` calls in the codebase. README advertises Node/Express/MongoDB persistence, scheduled email renewal reminders, and monetization — none exists here. |
 | F3 | **No forgot-password / reset flow** on sign-in. |

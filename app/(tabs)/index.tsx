@@ -74,7 +74,11 @@ export default function App() {
   };
 
   const handleSaveEdit = async (id: string, patch: UpdateSubscriptionPatch) => {
-    await updateSubscription(id, patch);
+    // The store swallows write failures into its `error` state, so without this
+    // check a failed save would still report an edit to analytics.
+    const saved = await updateSubscription(id, patch);
+    if (!saved) return;
+
     posthog.capture("subscription_edited", {
       subscription_id: id,
       fields: Object.keys(patch).join(","),
@@ -84,7 +88,11 @@ export default function App() {
   const handleCancelSubscription = async (subscription: Subscription) => {
     setCancellingId(subscription.id);
     try {
-      await updateSubscription(subscription.id, { status: "cancelled" });
+      const cancelled = await updateSubscription(subscription.id, {
+        status: "cancelled",
+      });
+      if (!cancelled) return;
+
       posthog.capture("subscription_cancelled", {
         subscription_id: subscription.id,
         category: subscription.category ?? "Other",

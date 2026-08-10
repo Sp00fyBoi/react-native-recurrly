@@ -26,11 +26,15 @@ const runSeed = async (
   const alreadySeeded = await getMeta(seedKey(userId));
   if (alreadySeeded) return false;
 
+  // Marked before inserting, not after: if a create throws part-way through,
+  // the next launch would otherwise re-run the whole loop and duplicate every
+  // row that did land. A short demo list is the better thing to lose.
+  await setMeta(seedKey(userId), new Date().toISOString());
+
   for (const subscription of DEMO_SUBSCRIPTIONS) {
     await repository.create(userId, subscription);
   }
 
-  await setMeta(seedKey(userId), new Date().toISOString());
   return true;
 };
 

@@ -16,8 +16,11 @@ export const formatCurrency = (
     }).format(value);
   } catch {
     // Some Hermes builds ship without full ICU. A bare number reads as the
-    // wrong currency entirely, so keep at least the symbol.
-    return `${currencySymbol(currency)}${value.toFixed(2)}`;
+    // wrong currency entirely, so keep at least the symbol — falling back to
+    // the code itself for anything we have no symbol for.
+    const symbol = currencySymbol(currency);
+    const amount = value.toFixed(2);
+    return symbol ? `${symbol}${amount}` : `${amount} ${currency}`;
   }
 };
 

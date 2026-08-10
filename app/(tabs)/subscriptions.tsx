@@ -79,7 +79,6 @@ const Subscriptions = () => {
     status,
     error,
     refresh,
-    addSubscription,
     updateSubscription,
   } = useSubscriptions();
   const posthog = usePostHog();
@@ -97,7 +96,11 @@ const Subscriptions = () => {
   const handleCancelSubscription = async (subscription: Subscription) => {
     setCancellingId(subscription.id);
     try {
-      await updateSubscription(subscription.id, { status: "cancelled" });
+      const cancelled = await updateSubscription(subscription.id, {
+        status: "cancelled",
+      });
+      if (!cancelled) return;
+
       posthog.capture("subscription_cancelled", {
         subscription_id: subscription.id,
         category: subscription.category ?? "Other",
@@ -112,7 +115,9 @@ const Subscriptions = () => {
     id: string,
     patch: UpdateSubscriptionPatch,
   ) => {
-    await updateSubscription(id, patch);
+    const saved = await updateSubscription(id, patch);
+    if (!saved) return;
+
     posthog.capture("subscription_edited", {
       subscription_id: id,
       fields: Object.keys(patch).join(","),
@@ -331,11 +336,12 @@ const Subscriptions = () => {
         </Pressable>
       </Modal>
 
+      {/* No `onCreate`: this sheet is only ever opened from a card's edit
+          action, so `visible` is never true without a subscription. */}
       <CreateSubscriptionModal
         visible={editing !== null}
         subscription={editing}
         onClose={() => setEditing(null)}
-        onCreate={addSubscription}
         onUpdate={handleSaveEdit}
       />
     </SafeAreaView>

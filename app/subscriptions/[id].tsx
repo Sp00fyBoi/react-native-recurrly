@@ -31,7 +31,7 @@ const SubscriptionDetails = () => {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const posthog = usePostHog();
-  const { subscriptions, status, updateSubscription, removeSubscription } =
+  const { subscriptions, status, error, updateSubscription, removeSubscription } =
     useSubscriptions();
   const [pending, setPending] = useState<PendingAction>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -80,7 +80,11 @@ const SubscriptionDetails = () => {
     const nextStatus: SubscriptionStatus = isPaused ? "active" : "paused";
     setPending("status");
     try {
-      await updateSubscription(subscription.id, { status: nextStatus });
+      const changed = await updateSubscription(subscription.id, {
+        status: nextStatus,
+      });
+      if (!changed) return;
+
       posthog.capture("subscription_status_changed", {
         subscription_id: subscription.id,
         status: nextStatus,
@@ -93,7 +97,11 @@ const SubscriptionDetails = () => {
   const handleCancel = async () => {
     setPending("status");
     try {
-      await updateSubscription(subscription.id, { status: "cancelled" });
+      const cancelled = await updateSubscription(subscription.id, {
+        status: "cancelled",
+      });
+      if (!cancelled) return;
+
       posthog.capture("subscription_cancelled", {
         subscription_id: subscription.id,
         category: subscription.category ?? "Other",
@@ -108,7 +116,9 @@ const SubscriptionDetails = () => {
     subscriptionId: string,
     patch: UpdateSubscriptionPatch,
   ) => {
-    await updateSubscription(subscriptionId, patch);
+    const saved = await updateSubscription(subscriptionId, patch);
+    if (!saved) return;
+
     posthog.capture("subscription_edited", {
       subscription_id: subscriptionId,
       fields: Object.keys(patch).join(","),
@@ -128,7 +138,11 @@ const SubscriptionDetails = () => {
           onPress: async () => {
             setPending("delete");
             try {
-              await removeSubscription(subscription.id);
+              // Staying put on failure is the point: navigating back would
+              // imply the row is gone while it is still in the list.
+              const deleted = await removeSubscription(subscription.id);
+              if (!deleted) return;
+
               posthog.capture("subscription_deleted", {
                 subscription_id: subscription.id,
               });
@@ -219,6 +233,8 @@ const SubscriptionDetails = () => {
             </View>
           ))}
         </View>
+
+        {error && <Text className="auth-error mb-4 text-center">{error}</Text>}
 
         <View className="detail-actions">
           <Pressable

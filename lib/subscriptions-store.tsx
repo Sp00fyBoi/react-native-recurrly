@@ -19,11 +19,12 @@ type SubscriptionsContextValue = {
   error?: string;
   refresh: () => Promise<void>;
   addSubscription: (input: CreateSubscriptionInput) => Promise<Subscription | undefined>;
+  /** `false` when the write failed — callers use this to gate analytics. */
   updateSubscription: (
     id: string,
     patch: UpdateSubscriptionPatch,
-  ) => Promise<void>;
-  removeSubscription: (id: string) => Promise<void>;
+  ) => Promise<boolean>;
+  removeSubscription: (id: string) => Promise<boolean>;
 };
 
 const SubscriptionsContext = createContext<
@@ -54,7 +55,16 @@ export const SubscriptionsProvider = ({
     };
   }, []);
 
+  // Every load claims a ticket. Seeding plus listing is slow enough that a fast
+  // user switch (or a manual refresh during one) can leave two runs in flight;
+  // without this the older one lands last and shows the previous account's rows.
+  const loadRunRef = useRef(0);
+
   const load = useCallback(async () => {
+    const runId = ++loadRunRef.current;
+    const isSuperseded = () =>
+      !isMountedRef.current || loadRunRef.current !== runId;
+
     if (!userId) {
       setSubscriptions([]);
       setStatus("ready");
@@ -68,11 +78,11 @@ export const SubscriptionsProvider = ({
     try {
       await seedDemoDataIfNeeded(subscriptionRepository, userId);
       const rows = await subscriptionRepository.list(userId);
-      if (!isMountedRef.current) return;
+      if (isSuperseded()) return;
       setSubscriptions(rows);
       setStatus("ready");
     } catch {
-      if (!isMountedRef.current) return;
+      if (isSuperseded()) return;
       setSubscriptions([]);
       setError(LOAD_ERROR);
       setStatus("error");
@@ -103,16 +113,20 @@ export const SubscriptionsProvider = ({
 
   const updateSubscription = useCallback(
     async (id: string, patch: UpdateSubscriptionPatch) => {
-      if (!userId) return;
+      if (!userId) return false;
       try {
         const updated = await subscriptionRepository.update(userId, id, patch);
-        if (!updated || !isMountedRef.current) return;
-        setSubscriptions((current) =>
-          current.map((item) => (item.id === id ? updated : item)),
-        );
-        setError(undefined);
+        if (!updated) return false;
+        if (isMountedRef.current) {
+          setSubscriptions((current) =>
+            current.map((item) => (item.id === id ? updated : item)),
+          );
+          setError(undefined);
+        }
+        return true;
       } catch {
         if (isMountedRef.current) setError(WRITE_ERROR);
+        return false;
       }
     },
     [userId],
@@ -120,14 +134,19 @@ export const SubscriptionsProvider = ({
 
   const removeSubscription = useCallback(
     async (id: string) => {
-      if (!userId) return;
+      if (!userId) return false;
       try {
         await subscriptionRepository.remove(userId, id);
-        if (!isMountedRef.current) return;
-        setSubscriptions((current) => current.filter((item) => item.id !== id));
-        setError(undefined);
+        if (isMountedRef.current) {
+          setSubscriptions((current) =>
+            current.filter((item) => item.id !== id),
+          );
+          setError(undefined);
+        }
+        return true;
       } catch {
         if (isMountedRef.current) setError(WRITE_ERROR);
+        return false;
       }
     },
     [userId],

@@ -4,6 +4,7 @@ import { markOnboardingSeen } from "@/lib/onboarding";
 import { useRouter } from "expo-router";
 import { styled } from "nativewind";
 import { usePostHog } from "posthog-react-native";
+import { useState } from "react";
 import { Image, Pressable, Text, View } from "react-native";
 import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
 
@@ -12,8 +13,14 @@ const SafeAreaView = styled(RNSafeAreaView);
 const Onboarding = () => {
   const router = useRouter();
   const posthog = usePostHog();
+  const [isStarting, setIsStarting] = useState(false);
 
   const handleGetStarted = async () => {
+    // `markOnboardingSeen` awaits a database write, which is long enough for a
+    // second tap to land and navigate twice.
+    if (isStarting) return;
+    setIsStarting(true);
+
     posthog.capture("onboarding_completed");
     // Mark first so a failed write can't trap the user on this screen forever.
     await markOnboardingSeen();
@@ -40,7 +47,9 @@ const Onboarding = () => {
         <Pressable
           className="onboarding-button"
           onPress={handleGetStarted}
+          disabled={isStarting}
           accessibilityRole="button"
+          accessibilityState={{ disabled: isStarting }}
         >
           <Text className="onboarding-button-text">Get Started</Text>
         </Pressable>

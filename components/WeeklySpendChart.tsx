@@ -6,6 +6,16 @@ const PLOT_HEIGHT = 180;
 const TICK_COUNT = 4;
 
 /**
+ * Fixed width for the y-axis column so the day-label row below can reserve the
+ * exact same space and keep each label under its bar. Left intrinsic, the
+ * column resized with the tick text — which INR totals made wide enough to
+ * push the labels visibly out of line.
+ */
+const Y_AXIS_WIDTH = 40;
+/** `mr-3` on `.chart-y-axis`, mirrored into the spacer below. */
+const Y_AXIS_GUTTER = 12;
+
+/**
  * Single-series bar chart of renewal spend across the next seven days.
  *
  * Deliberately plain Views rather than a chart library: one series, seven
@@ -43,9 +53,12 @@ const WeeklySpendChart = ({
         <>
           <View className="chart-plot">
             {/* Y axis — recessive, values only */}
-            <View className="chart-y-axis" style={{ height: PLOT_HEIGHT }}>
+            <View
+              className="chart-y-axis"
+              style={{ height: PLOT_HEIGHT, width: Y_AXIS_WIDTH }}
+            >
               {ticks.map((tick) => (
-                <Text key={tick} className="chart-y-label">
+                <Text key={tick} className="chart-y-label" numberOfLines={1}>
                   {tick}
                 </Text>
               ))}
@@ -100,7 +113,7 @@ const WeeklySpendChart = ({
 
           <View className="chart-day-row">
             {/* Spacer matching the y-axis column so labels line up with bars */}
-            <View style={{ width: 34 }} />
+            <View style={{ width: Y_AXIS_WIDTH + Y_AXIS_GUTTER }} />
             {days.map((day, index) => (
               <Text key={day.label + index} className="chart-day">
                 {day.label}

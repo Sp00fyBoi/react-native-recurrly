@@ -10,8 +10,9 @@ const ONBOARDING_SEEN_KEY = "onboarding_seen";
 export const hasSeenOnboarding = async (): Promise<boolean> => {
   try {
     return Boolean(await getMeta(ONBOARDING_SEEN_KEY));
-  } catch {
+  } catch (error) {
     // If the database can't be read, don't block the app on a welcome screen.
+    console.warn("Couldn't read the onboarding flag:", error);
     return true;
   }
 };
@@ -19,7 +20,8 @@ export const hasSeenOnboarding = async (): Promise<boolean> => {
 export const markOnboardingSeen = async (): Promise<void> => {
   try {
     await setMeta(ONBOARDING_SEEN_KEY, new Date().toISOString());
-  } catch {
+  } catch (error) {
     // Non-fatal: worst case the user sees onboarding once more.
+    console.warn("Couldn't record that onboarding was seen:", error);
   }
 };

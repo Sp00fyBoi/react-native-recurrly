@@ -31,45 +31,43 @@ const TabLayout = () => {
   // The subscriptions store is provided from app/_layout.tsx so routes outside
   // this group (notably /subscriptions/[id]) can read it too.
   return (
-    <>
-      <Tabs
-        screenOptions={{
-          headerShown: false,
-          tabBarLabelVisibilityMode: "unlabeled",
-          tabBarStyle: {
-            position: "absolute",
-            bottom: Math.max(insets.bottom, tabBar.horizontalInset),
-            height: tabBar.height,
-            marginHorizontal: tabBar.horizontalInset,
-            borderRadius: tabBar.radius,
-            backgroundColor: colors.primary,
-            borderTopWidth: 0,
-            elevation: 0,
-          },
-          tabBarItemStyle: {
-            paddingVertical: tabBar.height / 2 - tabBar.iconFrame / 1.6,
-          },
-          tabBarIconStyle: {
-            width: tabBar.iconFrame,
-            height: tabBar.iconFrame,
-            alignItems: "center",
-          },
-        }}
-      >
-        {tabs.map((tab) => (
-          <Tabs.Screen
-            key={tab.name}
-            name={tab.name}
-            options={{
-              title: tab.title,
-              tabBarIcon: ({ focused }) => (
-                <TabIcon focused={focused} icon={tab.icon} />
-              ),
-            }}
-          />
-        ))}
-      </Tabs>
-    </>
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarLabelVisibilityMode: "unlabeled",
+        tabBarStyle: {
+          position: "absolute",
+          bottom: Math.max(insets.bottom, tabBar.horizontalInset),
+          height: tabBar.height,
+          marginHorizontal: tabBar.horizontalInset,
+          borderRadius: tabBar.radius,
+          backgroundColor: colors.primary,
+          borderTopWidth: 0,
+          elevation: 0,
+        },
+        tabBarItemStyle: {
+          paddingVertical: tabBar.height / 2 - tabBar.iconFrame / 1.6,
+        },
+        tabBarIconStyle: {
+          width: tabBar.iconFrame,
+          height: tabBar.iconFrame,
+          alignItems: "center",
+        },
+      }}
+    >
+      {tabs.map((tab) => (
+        <Tabs.Screen
+          key={tab.name}
+          name={tab.name}
+          options={{
+            title: tab.title,
+            tabBarIcon: ({ focused }) => (
+              <TabIcon focused={focused} icon={tab.icon} />
+            ),
+          }}
+        />
+      ))}
+    </Tabs>
   );
 };
 
