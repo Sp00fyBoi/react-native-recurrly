@@ -88,11 +88,13 @@ Create a `.env` file in the root of the project:
 
 ```env
 EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=
-POSTHOG_PROJECT_TOKEN=
-POSTHOG_HOST=https://us.i.posthog.com
+EXPO_PUBLIC_POSTHOG_PROJECT_TOKEN=
+EXPO_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
 ```
 
-Add your own credentials to the appropriate variables.
+Add your own credentials to the appropriate variables. The `EXPO_PUBLIC_`
+prefix is required — the app reads these through `process.env`, and Expo only
+inlines variables carrying that prefix into the bundle.
 
 ## 📱 Running the Application
 
@@ -103,6 +105,44 @@ npx expo start
 ```
 
 Then launch the application through Expo Go or an Android/iOS development environment.
+
+## 🚢 Deployment
+
+Builds run on [EAS](https://expo.dev/eas). `android/` and `ios/` are generated
+from `app.json` at build time, so never edit them by hand — EAS regenerates them.
+
+**One-time setup**
+
+```bash
+npm install -g eas-cli
+eas login
+eas init            # links the project and writes extra.eas.projectId
+```
+
+Because `.env` is git-ignored and never uploaded, the `EXPO_PUBLIC_*` variables
+must also exist on EAS or the built app will boot straight into the
+"Configuration required" screen:
+
+```bash
+eas env:create --environment production --name EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY --value pk_live_...
+eas env:create --environment production --name EXPO_PUBLIC_POSTHOG_PROJECT_TOKEN --value phc_...
+eas env:create --environment production --name EXPO_PUBLIC_POSTHOG_HOST --value https://us.i.posthog.com
+```
+
+Repeat with `--environment preview` for internal builds. Each build profile in
+`eas.json` declares which environment it pulls from.
+
+**Building and submitting**
+
+```bash
+eas build --profile preview --platform android     # installable APK for testers
+eas build --profile production --platform all      # AAB + IPA for the stores
+eas submit --profile production --platform android # or --platform ios
+```
+
+Version numbers are managed remotely (`appVersionSource: "remote"`), so
+`versionCode` and `buildNumber` auto-increment on every production build. Bump
+the user-facing `version` in `app.json` by hand for each release.
 
 ## 📚 Learning & Inspiration
 
